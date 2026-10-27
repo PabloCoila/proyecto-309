@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ink-950 font-sans text-slate-200 antialiased;
+  }
+
+  ::selection {
+    @apply bg-gold-500/30 text-white;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-white/10;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    @apply bg-white/20;
+  }
+
+  input[type='search']::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
+@layer components {
+  .surface {
+    @apply rounded-2xl border border-white/[0.07] bg-ink-900/70 shadow-panel backdrop-blur-sm;
+  }
+
+  .surface-flat {
+    @apply rounded-xl border border-white/[0.06] bg-white/[0.02];
+  }
+
+  .label {
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-400;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-white/10 bg-ink-950/70 px-3.5 py-2.5 text-sm text-slate-100 caret-gold-400 outline-none transition placeholder:text-slate-500 focus:border-gold-500/60 focus:ring-2 focus:ring-gold-500/15 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .field-error {
+    @apply border-rose-500/60 focus:border-rose-500/70 focus:ring-rose-500/15;
+  }
+
+  .hairline {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent;
+  }
+
+  .gold-text {
+    @apply bg-gradient-to-r from-gold-200 via-gold-400 to-gold-600 bg-clip-text text-transparent;
+  }
+
+  .row-hover {
+    @apply transition-colors hover:bg-white/[0.03];
+  }
+}
