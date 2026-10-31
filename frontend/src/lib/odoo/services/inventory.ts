@@ -1,7 +1,7 @@
 /** Inventario y almacén: productos, ubicaciones y ajustes de stock. */
 import type { OdooClient } from '../client';
 import { OdooError, stripHtml } from '../errors';
-import type { Domain, Product, StockLocation, StockQuant } from '../types';
+import type { Domain, Many2One, Product, StockLocation, StockQuant } from '../types';
 
 const PRODUCT_FIELDS = [
   'name',
@@ -24,6 +24,8 @@ export interface ProductQuery {
   offset?: number;
   /** Solo productos con existencia > 0. */
   onlyWithStock?: boolean;
+  /** Solo productos almacenables (excluye servicios y consumibles). */
+  stockableOnly?: boolean;
   order?: string;
 }
 
@@ -54,7 +56,7 @@ export async function createProduct(client: OdooClient, input: ProductInput): Pr
 
 /** Lista de productos con su existencia a mano. */
 export async function listProducts(client: OdooClient, query: ProductQuery = {}): Promise<Product[]> {
-  const { search = '', limit = 80, offset = 0, onlyWithStock = false, order = 'name asc' } = query;
+  const { search = '', limit = 80, offset = 0, onlyWithStock = false, stockableOnly = false, order = 'name asc' } = query;
 
   const domain: Domain = [];
   const term = search.trim();
@@ -62,6 +64,7 @@ export async function listProducts(client: OdooClient, query: ProductQuery = {})
     domain.push('|', '|', ['name', 'ilike', term], ['default_code', 'ilike', term], ['barcode', 'ilike', term]);
   }
   if (onlyWithStock) domain.push(['qty_available', '>', 0]);
+  if (stockableOnly) domain.push(['detailed_type', '=', 'product']);
 
   return client.searchRead<Product>('product.product', {
     domain,
@@ -180,3 +183,266 @@ export async function getInventorySummary(client: OdooClient): Promise<{
   ]);
   return { products, locations, quants };
 }
+
+/* ------------------------- Salidas de stock (ventas) ------------------------ */
+
+export interface StockLineInput {
+  productId: number;
+  quantity: number;
+}
+
+export interface StockLine extends StockLineInput {
+  name: string;
+  uomId: number;
+}
+
+interface ProductStockRow {
+  id: number;
+  name: string;
+  detailed_type?: string;
+  type?: string;
+  free_qty?: number;
+  qty_available?: number;
+  uom_id: Many2One;
+}
+
+interface PickingTypeRow {
+  id: number;
+  name: string;
+  default_location_src_id: Many2One;
+  default_location_dest_id: Many2One;
+}
+
+interface StockMoveRow {
+  id: number;
+  name: string;
+  product_uom_qty: number;
+  quantity: number;
+}
+
+/** Plan de salida calculado antes de tocar datos (productos + ubicaciones). */
+export interface StockDeliveryPlan {
+  lines: StockLine[];
+  pickingTypeId: number;
+  sourceLocationId: number;
+  destinationLocationId: number;
+}
+
+/** Albarán confirmado y reservado, pendiente de validar. */
+export interface StockReservation {
+  pickingId: number;
+  pickingName: string;
+  moves: Array<{ id: number; name: string; quantity: number }>;
+}
+
+function isStorable(product: ProductStockRow): boolean {
+  return (product.detailed_type ?? product.type) === 'product';
+}
+
+/**
+ * Valida existencias y prepara la salida de almacén para una venta.
+ *
+ * - Agrupa líneas repetidas por producto.
+ * - Ignora servicios y consumibles (no manejan cantidades en `stock.quant`).
+ * - Falla con un mensaje claro si no hay disponibilidad suficiente.
+ * - Devuelve `null` cuando la orden solo tiene conceptos sin stock.
+ *
+ * No escribe nada en Odoo: es seguro llamarlo antes de crear la factura.
+ */
+export async function prepareStockDelivery(
+  client: OdooClient,
+  lines: StockLineInput[],
+): Promise<StockDeliveryPlan | null> {
+  const grouped = new Map<number, number>();
+  for (const line of lines) {
+    if (!line.productId || !(line.quantity > 0)) continue;
+    grouped.set(line.productId, (grouped.get(line.productId) ?? 0) + line.quantity);
+  }
+  if (grouped.size === 0) return null;
+
+  const products = await client.read<ProductStockRow>('product.product', [...grouped.keys()], [
+    'name',
+    'detailed_type',
+    'type',
+    'free_qty',
+    'qty_available',
+    'uom_id',
+  ]);
+  const byId = new Map(products.map((product) => [product.id, product]));
+
+  const stockLines: StockLine[] = [];
+  const shortages: string[] = [];
+
+  for (const [productId, quantity] of grouped) {
+    const product = byId.get(productId);
+    if (!product) {
+      throw new OdooError({ message: 'Uno de los productos de la orden ya no existe en Odoo.' });
+    }
+    if (!isStorable(product)) continue;
+    if (!Array.isArray(product.uom_id)) {
+      throw new OdooError({ message: `El producto ${product.name} no tiene unidad de medida configurada.` });
+    }
+
+    const available = Number(product.free_qty ?? product.qty_available ?? 0);
+    if (quantity > available + 1e-6) {
+      shortages.push(`${product.name}: pedido ${quantity}, disponible ${available}`);
+      continue;
+    }
+
+    stockLines.push({ productId, quantity, name: product.name, uomId: product.uom_id[0] });
+  }
+
+  if (shortages.length > 0) {
+    throw new OdooError({
+      message: `Stock insuficiente. ${shortages.join(' · ')}. Ajusta el inventario antes de emitir la factura.`,
+    });
+  }
+  if (stockLines.length === 0) return null;
+
+  const [pickingType] = await client.searchRead<PickingTypeRow>('stock.picking.type', {
+    domain: [['code', '=', 'outgoing']],
+    fields: ['name', 'default_location_src_id', 'default_location_dest_id'],
+    order: 'sequence asc, id asc',
+    limit: 1,
+  });
+  if (!pickingType) {
+    throw new OdooError({
+      message: 'Odoo no tiene un tipo de operación de salida configurado (Inventario → Operaciones).',
+    });
+  }
+
+  const sourceLocationId = Array.isArray(pickingType.default_location_src_id)
+    ? pickingType.default_location_src_id[0]
+    : null;
+  let destinationLocationId = Array.isArray(pickingType.default_location_dest_id)
+    ? pickingType.default_location_dest_id[0]
+    : null;
+
+  if (!destinationLocationId) {
+    const [customerLocation] = await client.searchRead<{ id: number }>('stock.location', {
+      domain: [['usage', '=', 'customer']],
+      fields: ['id'],
+      order: 'id asc',
+      limit: 1,
+    });
+    destinationLocationId = customerLocation?.id ?? null;
+  }
+
+  if (!sourceLocationId || !destinationLocationId) {
+    throw new OdooError({
+      message: 'La operación de salida de Odoo no tiene ubicaciones de origen/destino configuradas.',
+    });
+  }
+
+  return {
+    lines: stockLines,
+    pickingTypeId: pickingType.id,
+    sourceLocationId,
+    destinationLocationId,
+  };
+}
+
+/**
+ * Crea, confirma y reserva el albarán de salida. Si algo falla, intenta
+ * cancelarlo para no dejar reservas huérfanas.
+ */
+export async function reserveStockDelivery(
+  client: OdooClient,
+  plan: StockDeliveryPlan,
+  origin = 'Neru POS',
+): Promise<StockReservation> {
+  let pickingId: number | null = null;
+
+  try {
+    pickingId = await client.create('stock.picking', {
+      picking_type_id: plan.pickingTypeId,
+      location_id: plan.sourceLocationId,
+      location_dest_id: plan.destinationLocationId,
+      origin,
+      move_ids_without_package: plan.lines.map((line) => [
+        0,
+        0,
+        {
+          name: line.name,
+          product_id: line.productId,
+          product_uom_qty: line.quantity,
+          product_uom: line.uomId,
+          location_id: plan.sourceLocationId,
+          location_dest_id: plan.destinationLocationId,
+        },
+      ]),
+    });
+
+    await client.callButton('stock.picking', 'action_confirm', [pickingId]);
+    await client.callButton('stock.picking', 'action_assign', [pickingId]);
+
+    const moves = await client.searchRead<StockMoveRow>('stock.move', {
+      domain: [['picking_id', '=', pickingId]],
+      fields: ['name', 'product_uom_qty', 'quantity'],
+    });
+
+    const pending = moves.filter((move) => move.quantity + 1e-6 < move.product_uom_qty);
+    if (pending.length > 0) {
+      throw new OdooError({
+        message: `No se pudo reservar todo el stock: ${pending.map((move) => move.name).join(', ')}.`,
+      });
+    }
+
+    const [picking] = await client.read<{ name: string }>('stock.picking', [pickingId], ['name']);
+    return {
+      pickingId,
+      pickingName: picking?.name ?? `#${pickingId}`,
+      moves: moves.map((move) => ({
+        id: move.id,
+        name: move.name,
+        quantity: move.product_uom_qty,
+      })),
+    };
+  } catch (error) {
+    if (pickingId) await cancelStockDelivery(client, { pickingId });
+    throw error;
+  }
+}
+
+/**
+ * Marca todas las líneas como surtidas y valida el albarán.
+ * Al terminar, `qty_available` y `free_qty` reflejan la venta.
+ */
+export async function validateStockDelivery(
+  client: OdooClient,
+  reservation: StockReservation,
+): Promise<void> {
+  for (const move of reservation.moves) {
+    await client.write('stock.move', [move.id], { quantity: move.quantity, picked: true });
+  }
+
+  await client.callButton('stock.picking', 'button_validate', [reservation.pickingId], {
+    context: { skip_backorder: true },
+  });
+
+  const [picking] = await client.read<{ state: string }>('stock.picking', [reservation.pickingId], [
+    'state',
+  ]);
+  if (picking?.state !== 'done') {
+    throw new OdooError({
+      message: `Odoo no confirmó la salida de stock (estado: ${picking?.state ?? 'desconocido'}).`,
+    });
+  }
+}
+
+/** Cancela un albarán aún no validado. Nunca lanza: es una compensación. */
+export async function cancelStockDelivery(
+  client: OdooClient,
+  reservation: { pickingId: number },
+): Promise<void> {
+  try {
+    const [picking] = await client.read<{ state: string }>('stock.picking', [reservation.pickingId], [
+      'state',
+    ]);
+    if (!picking || picking.state === 'done' || picking.state === 'cancel') return;
+    await client.callButton('stock.picking', 'action_cancel', [reservation.pickingId]);
+  } catch {
+    /* la compensación es best-effort */
+  }
+}
+

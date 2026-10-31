@@ -47,6 +47,11 @@ function invoiceStateLabel(state: Invoice['state']): string {
   return 'Cancelada';
 }
 
+/** Solo los productos almacenables descuentan cantidades de inventario. */
+function tracksStock(product: Product): boolean {
+  return (product.detailed_type ?? product.type) === 'product';
+}
+
 export function SalesPage() {
   const { client, currency } = useSession();
   const toast = useToast();
@@ -130,6 +135,15 @@ export function SalesPage() {
   };
 
   const addProduct = (product: Product) => {
+    const inCartQty = lines.find((line) => line.product.id === product.id)?.quantity ?? 0;
+    if (tracksStock(product) && inCartQty >= product.free_qty) {
+      toast.error(
+        'Stock insuficiente',
+        `Solo hay ${formatQty(product.free_qty)} disponible(s) de ${product.name}.`,
+      );
+      return;
+    }
+
     setResult(null);
     setLines((current) => {
       const existing = current.find((line) => line.product.id === product.id);
@@ -150,6 +164,17 @@ export function SalesPage() {
     );
   };
 
+  const increaseQuantity = (line: CartLine) => {
+    if (tracksStock(line.product) && line.quantity >= line.product.free_qty) {
+      toast.error(
+        'Stock insuficiente',
+        `Solo hay ${formatQty(line.product.free_qty)} disponible(s) de ${line.product.name}.`,
+      );
+      return;
+    }
+    updateQuantity(line.product.id, line.quantity + 1);
+  };
+
   const removeLine = (productId: number) => {
     setLines((current) => current.filter((line) => line.product.id !== productId));
   };
@@ -168,6 +193,23 @@ export function SalesPage() {
     }
     if (lines.length === 0) {
       toast.error('Orden vacía', 'Agrega al menos un producto al carrito.');
+      return;
+    }
+
+    const shortages = lines.filter(
+      (line) => tracksStock(line.product) && line.quantity > line.product.free_qty,
+    );
+    if (shortages.length > 0) {
+      toast.error(
+        'Stock insuficiente',
+        shortages
+          .map(
+            (line) =>
+              `${line.product.name}: pedido ${formatQty(line.quantity)}, disponible ${formatQty(line.product.free_qty)}`,
+          )
+          .join(' · '),
+      );
+      void loadProducts();
       return;
     }
 
@@ -290,15 +332,27 @@ export function SalesPage() {
           ) : (
             <div className="grid flex-1 content-start gap-3 overflow-y-auto p-4 sm:grid-cols-2 2xl:grid-cols-3">
               {products.map((product) => {
-                const isService = (product.detailed_type ?? product.type) === 'service';
+                const kind = product.detailed_type ?? product.type;
+                const isService = kind === 'service';
+                const controlsStock = kind === 'product';
                 const inCart = lines.find((line) => line.product.id === product.id);
+                const inCartQty = inCart?.quantity ?? 0;
+                const atLimit = controlsStock && inCartQty >= product.free_qty;
+                const unavailable = controlsStock && product.free_qty <= 0;
+                const disabled = atLimit || unavailable;
+
                 return (
                   <motion.button
                     key={product.id}
                     type="button"
                     onClick={() => addProduct(product)}
-                    whileTap={{ scale: 0.985 }}
-                    className="group relative flex h-full flex-col justify-between rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-left transition hover:border-gold-500/35 hover:bg-gold-500/[0.05]"
+                    disabled={disabled}
+                    whileTap={disabled ? undefined : { scale: 0.985 }}
+                    className={`group relative flex h-full flex-col justify-between rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-left transition ${
+                      disabled
+                        ? 'cursor-not-allowed opacity-60'
+                        : 'hover:border-gold-500/35 hover:bg-gold-500/[0.05]'
+                    }`}
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2">
@@ -319,10 +373,12 @@ export function SalesPage() {
                       </p>
                       {isService ? (
                         <Badge tone="neutral">Servicio</Badge>
-                      ) : (
-                        <span className={`text-[10.5px] ${product.qty_available > 0 ? 'text-slate-500' : 'text-rose-600'}`}>
-                          {formatQty(product.qty_available)} en stock
+                      ) : controlsStock ? (
+                        <span className={`text-[10.5px] ${product.free_qty > 0 ? 'text-slate-500' : 'text-rose-600'}`}>
+                          {formatQty(product.free_qty)} disponible(s)
                         </span>
+                      ) : (
+                        <Badge tone="neutral">Consumible</Badge>
                       )}
                     </div>
                   </motion.button>
@@ -466,8 +522,9 @@ export function SalesPage() {
                                 <span className="min-w-7 text-center text-xs font-medium text-slate-900">{line.quantity}</span>
                                 <button
                                   type="button"
-                                  onClick={() => updateQuantity(line.product.id, line.quantity + 1)}
-                                  className="px-2 py-1 text-slate-600 transition hover:text-slate-900"
+                                  onClick={() => increaseQuantity(line)}
+                                  disabled={tracksStock(line.product) && line.quantity >= line.product.free_qty}
+                                  className="px-2 py-1 text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
                                   aria-label="Aumentar"
                                 >
                                   <Plus className="h-3 w-3" />
@@ -489,7 +546,7 @@ export function SalesPage() {
                       <span className="text-base font-semibold text-slate-900">{formatMoney(subtotal, currency)}</span>
                     </div>
                     <p className="mt-1 text-[10.5px] leading-relaxed text-slate-500">
-                      
+                      El stock se reserva y descuenta automáticamente al emitir la factura.
                     </p>
 
                     <label className="mt-3 flex cursor-pointer items-center gap-2 text-[11px] text-slate-600">
@@ -753,7 +810,7 @@ function ClientPickerModal({
                     {selectedId === partner.id ? (
                       <Check className="h-4 w-4 text-gold-400" aria-hidden />
                     ) : (
-                      <span className="text-[10px] text-slate-500">{partner.sale_order_count ?? 0} compras</span>
+                      <span className="text-[10px] text-slate-500">{partner.invoice_count ?? 0} facturas</span>
                     )}
                   </button>
                 </li>

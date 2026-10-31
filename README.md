@@ -111,15 +111,16 @@ Copia `frontend/.env.example` a `frontend/.env` si necesitas otros valores. Por 
 | --- | --- |
 | Login | Autenticación real (`common.login`), animación de entrada y microinteracciones Framer Motion |
 | Inventario | Productos con cantidad a mano/disponible, búsqueda, filtro con stock, alta de productos, ubicaciones internas y ajuste de inventario (`stock.quant` + `action_apply_inventory`) |
-| Clientes | Listado `res.partner`, ranking por `sale_order_count`, alta rápida con validación |
-| Facturación | POS con carrito, selector de cliente, emisión de `account.move` + `action_post` y descarga inmediata del PDF |
+| Clientes | Listado `res.partner`, ranking por facturas publicadas, alta rápida con validación |
+| Facturación | POS con carrito, selector de cliente, validación de stock, emisión de `account.move` + `action_post`, salida de almacén (`stock.picking` validado) y descarga inmediata del PDF |
 | PDF | A4 con cabecera de marca, datos del cliente, ítems, totales de Odoo, notas, firma y paginación |
 
 ## Arquitectura y decisiones
 
 - **Sesión:** `uid` + contraseña en memoria; se persiste en `sessionStorage` (nunca `localStorage`) y se rehidrata al recargar.
 - **Totales:** el frontend solo muestra un subtotal estimado; los importes definitivos (impuestos incluidos) son los que devuelve Odoo tras publicar la factura.
-- **Ajustes de stock:** se aplican como inventario físico, no como recepción con picking. Es el camino más ligero y mantiene trazabilidad en Odoo.
+- **Ventas y stock:** antes de facturar se valida `free_qty`, se reserva un albarán de salida (`stock.picking` + `action_assign`) y, tras publicar la factura, se valida el albarán. Así `qty_available` baja y queda trazabilidad en `stock.move`. Si un paso falla, se cancelan el albarán y la factura para no dejar datos inconsistentes.
+- **Ajustes de stock:** se aplican como inventario físico (`stock.quant` + `action_apply_inventory`). Es el camino más ligero y mantiene trazabilidad en Odoo.
 - **PDF:** `jsPDF` + `jspdf-autotable` se cargan con `import()` dinámico (~400 kB) solo al generar un comprobante.
 - **Sin addons personalizados:** todo el contrato vive en el cliente JSON-RPC, así el backend se actualiza sin tocar el frontend.
 
@@ -130,6 +131,7 @@ npm run dev         # desarrollo (proxy a Odoo en :8069)
 npm run build       # typecheck + build de producción
 npm run typecheck   # solo TypeScript
 npm run test:ui     # smoke de UI con JSON-RPC simulado (Edge headless) + capturas
+npm run test:e2e    # flujo real contra Odoo + verificación de stock en :8069
 npm run pdf:sample  # genera docs/factura-ejemplo.pdf sin Odoo
 ```
 
@@ -137,6 +139,9 @@ npm run pdf:sample  # genera docs/factura-ejemplo.pdf sin Odoo
 
 ## Limitaciones conocidas
 
-- La integración se validó con build de producción y un servidor JSON-RPC simulado; falta la prueba de extremo a extremo contra el contenedor real.
+- La integración se validó con build de producción y un servidor JSON-RPC simulado; la prueba real requiere el contenedor Odoo encendido (`npm run test:e2e` con la base `neru` sembrada).
+- La sesión guarda `uid` y contraseña en `sessionStorage` porque JSON-RPC los exige en cada llamada. Para un despliegue multiusuario real conviene un proxy de servidor que no exponga la contraseña al navegador.
+- La factura y la salida de stock no comparten una transacción de base de datos: si falla el segundo paso se intenta revertir el primero (compensación best-effort).
+- Con varios almacenes se usa la primera operación de salida configurada; si el stock está en otro almacén, Odoo rechaza la reserva y la venta no se emite.
 - El ajuste de stock no descuenta reservas de pedidos pendientes.
 - El PDF es un comprobante de la factura de Odoo; no sustituye el reporte oficial ni incluye logo de la compañía (usa la marca Neru).

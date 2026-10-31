@@ -36,6 +36,7 @@ export function CustomersPage() {
 
   const [rows, setRows] = useState<Partner[]>([]);
   const [frequent, setFrequent] = useState<Partner[]>([]);
+  const [totals, setTotals] = useState<{ customers: number; invoices: number } | null>(null);
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search);
@@ -67,13 +68,26 @@ export function CustomersPage() {
     }
   }, [client]);
 
+  const loadTotals = useCallback(async () => {
+    try {
+      const [customers, invoices] = await Promise.all([
+        partners.countPartners(client),
+        partners.countCustomerInvoices(client),
+      ]);
+      setTotals({ customers, invoices });
+    } catch {
+      setTotals(null);
+    }
+  }, [client]);
+
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
     void loadFrequent();
-  }, [loadFrequent]);
+    void loadTotals();
+  }, [loadFrequent, loadTotals]);
 
   const handleCreated = () => {
     setNewOpen(false);
@@ -82,6 +96,7 @@ export function CustomersPage() {
     setSearch('');
     void load();
     void loadFrequent();
+    void loadTotals();
   };
 
   return (
@@ -98,17 +113,17 @@ export function CustomersPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
           label="Clientes registrados"
-          value={loading && rows.length === 0 ? '—' : rows.length}
+          value={totals ? totals.customers : '—'}
           icon={<Users className="h-4 w-4" />}
         />
         <Stat
-          label="Compras acumuladas"
-          value={rows.reduce((total, row) => total + (row.sale_order_count ?? 0), 0)}
+          label="Facturas a clientes"
+          value={totals ? totals.invoices : '—'}
           icon={<ReceiptText className="h-4 w-4" />}
         />
         <Stat
-          label="Compras del cliente top"
-          value={frequent[0] ? frequent[0].sale_order_count ?? 0 : '—'}
+          label="Facturas del cliente top"
+          value={frequent[0] ? frequent[0].invoice_count ?? 0 : '—'}
           icon={<Crown className="h-4 w-4" />}
           accent
         />
@@ -121,13 +136,13 @@ export function CustomersPage() {
             <Crown className="h-4 w-4 text-gold-400" aria-hidden />
             <h2 className="text-sm font-semibold text-slate-900">Clientes más frecuentes</h2>
           </div>
-          <span className="label hidden sm:inline">por pedidos de venta</span>
+          <span className="label hidden sm:inline">por facturas emitidas</span>
         </div>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {frequent.length === 0 ? (
             <p className="col-span-full rounded-xl border border-dashed border-slate-200 px-4 py-5 text-center text-xs text-slate-500">
-              Aún no hay historial de compras. El ranking se calcula con <span className="font-mono">sale_order_count</span>.
+              Aún no hay historial de compras. El ranking se calcula con las facturas publicadas en Odoo.
             </p>
           ) : (
             frequent.map((partner, index) => (
@@ -144,7 +159,7 @@ export function CustomersPage() {
                   </span>
                   <Badge tone="gold">
                     <Crown className="h-3 w-3" aria-hidden />
-                    {partner.sale_order_count ?? 0}
+                    {partner.invoice_count ?? 0}
                   </Badge>
                 </div>
                 <p className="mt-2.5 truncate text-[13px] font-medium text-slate-900">{partner.name}</p>
@@ -246,7 +261,7 @@ export function CustomersPage() {
                   <th className="px-4 py-2.5 font-medium">Contacto</th>
                   <th className="px-4 py-2.5 font-medium">NIT / CI</th>
                   <th className="px-4 py-2.5 font-medium">Ciudad</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Compras</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Facturas</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -294,8 +309,8 @@ export function CustomersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Badge tone={(partner.sale_order_count ?? 0) > 0 ? 'gold' : 'neutral'}>
-                        {partner.sale_order_count ?? 0}
+                      <Badge tone={(partner.invoice_count ?? 0) > 0 ? 'gold' : 'neutral'}>
+                        {partner.invoice_count ?? 0}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">

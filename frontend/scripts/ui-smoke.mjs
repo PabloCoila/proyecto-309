@@ -47,6 +47,7 @@ const user = { id: 7, name: 'WinterOS', login: 'admin', lang: 'es_ES', company_i
 const company = { id: 1, name: 'Neru', currency_id: [1, 'BOB'] };
 
 let created = null;
+let stockMoves = [];
 
 function termsFromDomain(domain = []) {
   return (Array.isArray(domain) ? domain : [])
@@ -78,8 +79,16 @@ function executeKw(model, method, args, kwargs) {
     case 'res.company.read':
       return [company];
     case 'product.product.search_read': {
-      const rows = filterByTerms(products, ['name', 'default_code', 'barcode'], kwargs?.domain);
+      const onlyStockable = (kwargs?.domain ?? []).some(
+        (leaf) => Array.isArray(leaf) && leaf[0] === 'detailed_type' && leaf[2] === 'product',
+      );
+      const base = onlyStockable ? products.filter((product) => product.detailed_type === 'product') : products;
+      const rows = filterByTerms(base, ['name', 'default_code', 'barcode'], kwargs?.domain);
       return rows.slice(0, kwargs?.limit ?? 80);
+    }
+    case 'product.product.read': {
+      const ids = args?.[0] ?? [];
+      return products.filter((product) => ids.includes(product.id));
     }
     case 'product.product.search_count':
       return 6;
@@ -95,10 +104,44 @@ function executeKw(model, method, args, kwargs) {
       const product = products.find((row) => row.id === productId) ?? products[0];
       return [{ id: 700 + product.id, product_id: [product.id, product.name], location_id: [1, 'WH/Stock'], quantity: product.qty_available, reserved_quantity: 4 }];
     }
+    case 'stock.picking.type.search_read':
+      return [{
+        id: 2,
+        name: 'Delivery Orders',
+        default_location_src_id: [1, 'WH/Stock'],
+        default_location_dest_id: [9, 'Partners/Customers'],
+      }];
+    case 'stock.picking.create': {
+      const values = args?.[0] ?? {};
+      stockMoves = (values.move_ids_without_package ?? []).map((move, index) => {
+        const line = move?.[2] ?? {};
+        return {
+          id: 800 + index,
+          name: line.name ?? 'Producto',
+          product_uom_qty: line.product_uom_qty ?? 0,
+          quantity: line.product_uom_qty ?? 0,
+        };
+      });
+      return 800;
+    }
+    case 'stock.picking.read':
+      return [{ id: 800, name: 'WH/OUT/00001', state: 'done' }];
+    case 'stock.picking.write':
+    case 'stock.picking.action_confirm':
+    case 'stock.picking.action_assign':
+    case 'stock.picking.button_validate':
+    case 'stock.picking.action_cancel':
+      return true;
+    case 'stock.move.search_read':
+      return stockMoves;
+    case 'stock.move.write':
+      return true;
     case 'res.partner.search_read': {
       const rows = filterByTerms(partners, ['name', 'email', 'phone', 'vat'], kwargs?.domain);
       return rows.slice(0, kwargs?.limit ?? 100);
     }
+    case 'res.partner.search_count':
+      return partners.length;
     case 'res.partner.read': {
       const id = args?.[0]?.[0];
       const row = partners.find((partner) => partner.id === id);
@@ -108,6 +151,26 @@ function executeKw(model, method, args, kwargs) {
       return 99;
     case 'account.move.search_read':
       return recent;
+    case 'account.move.search_count':
+      return recent.filter((invoice) => invoice.state === 'posted').length;
+    case 'account.move.read_group': {
+      const domain = args?.[0] ?? [];
+      const idLeaf = domain.find(
+        (leaf) => Array.isArray(leaf) && leaf[0] === 'partner_id' && leaf[1] === 'in',
+      );
+      const allowed = Array.isArray(idLeaf?.[2]) ? idLeaf[2] : null;
+      const counts = new Map();
+      for (const invoice of recent) {
+        if (invoice.state !== 'posted') continue;
+        const partnerId = Array.isArray(invoice.partner_id) ? invoice.partner_id[0] : null;
+        if (!partnerId || (allowed && !allowed.includes(partnerId))) continue;
+        counts.set(partnerId, (counts.get(partnerId) ?? 0) + 1);
+      }
+      return [...counts].map(([id, count]) => ({
+        partner_id: [id, partners.find((partner) => partner.id === id)?.name ?? ''],
+        partner_id_count: count,
+      }));
+    }
     case 'account.move.create':
       return created ? created.id : 99;
     case 'account.move.read': {
@@ -256,6 +319,9 @@ await page.waitForTimeout(300);
 await page.getByRole('link', { name: /Facturación/ }).click();
 await page.waitForURL('**/ventas');
 await page.getByRole('button', { name: /Teclado mecánico Neru/ }).waitFor();
+if (!(await page.getByRole('button', { name: /Mouse inalámbrico/ }).isDisabled())) {
+  throw new Error('El producto sin stock debería aparecer deshabilitado en el POS.');
+}
 await page.getByRole('button', { name: /Teclado mecánico Neru/ }).click();
 await page.getByRole('button', { name: /Monitor 27/ }).first().click();
 await page.getByRole('button', { name: /Cable USB-C/ }).first().click();

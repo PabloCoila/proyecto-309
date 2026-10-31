@@ -53,6 +53,7 @@ export function InventoryPage() {
         const data = await inventory.listProducts(client, {
           search: debouncedSearch,
           onlyWithStock: onlyStock,
+          stockableOnly: true,
           limit: 120,
         });
         setProducts(data);

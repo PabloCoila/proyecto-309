@@ -162,8 +162,13 @@ export class OdooClient {
   }
 
   /** Ejecuta un botón/action del ORM (action_confirm, action_post...). */
-  async callButton<T = boolean>(model: string, method: string, ids: number[]): Promise<T> {
-    return this.executeKw<T>(model, method, [ids]);
+  async callButton<T = boolean>(
+    model: string,
+    method: string,
+    ids: number[],
+    kwargs: Record<string, unknown> = {},
+  ): Promise<T> {
+    return this.executeKw<T>(model, method, [ids], kwargs);
   }
 
   /* ------------------------------- transporte ------------------------------ */

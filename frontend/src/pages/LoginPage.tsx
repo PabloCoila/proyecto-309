@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { useToast } from '@/components/ui/Toast';
 import { useSession } from '@/context/session';
-import { DEMO_CREDENTIALS, friendlyMessage } from '@/lib/odoo';
+import { DEMO_AUTOFILL, DEMO_CREDENTIALS, friendlyMessage } from '@/lib/odoo';
 
 const container = {
   hidden: {},
@@ -27,8 +27,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [username, setUsername] = useState<string>(DEMO_CREDENTIALS.login);
-  const [password, setPassword] = useState<string>(DEMO_CREDENTIALS.password);
+  const [username, setUsername] = useState<string>(DEMO_AUTOFILL ? DEMO_CREDENTIALS.login : '');
+  const [password, setPassword] = useState<string>(DEMO_AUTOFILL ? DEMO_CREDENTIALS.password : '');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

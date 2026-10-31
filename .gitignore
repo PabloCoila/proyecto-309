@@ -7,3 +7,7 @@ dist-ssr/
 *.local
 .DS_Store
 *.log
+
+# Salidas del e2e real (se regeneran con npm run test:e2e)
+docs/real/
+docs/factura-real.pdf

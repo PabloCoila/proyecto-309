@@ -30,6 +30,14 @@ export const DEMO_CREDENTIALS = {
   password: env.VITE_ODOO_PASSWORD ?? 'admin',
 } as const;
 
+/**
+ * Rellena el formulario con las credenciales demo solo en desarrollo.
+ * En un build de producción los campos empiezan vacíos.
+ */
+export const DEMO_AUTOFILL = Boolean(
+  (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV,
+);
+
 export const odooClientConfig: OdooClientConfig = {
   // "/odoo" lo resuelve el proxy de Vite hacia http://localhost:8069 (evita CORS).
   baseUrl: env.VITE_ODOO_BASE_URL ?? '/odoo',

@@ -92,6 +92,8 @@ export interface Partner {
   country_id: Many2One;
   customer_rank: number;
   sale_order_count?: number;
+  /** Facturas publicadas, calculado por el servicio de clientes. */
+  invoice_count?: number;
   is_company: boolean;
 }
 

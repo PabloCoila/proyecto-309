@@ -13,7 +13,7 @@ export { OdooClient } from './client';
 export type { OdooClientConfig } from './client';
 export { OdooError, friendlyMessage, stripHtml, toOdooError } from './errors';
 export type { OdooErrorKind } from './errors';
-export { BRAND, DEMO_CREDENTIALS, odooClientConfig } from './config';
+export { BRAND, DEMO_AUTOFILL, DEMO_CREDENTIALS, odooClientConfig } from './config';
 export { clearSession, loadSession, saveSession } from './session';
 export type { StoredSession } from './session';
 

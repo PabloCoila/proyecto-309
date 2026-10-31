@@ -43,6 +43,128 @@ const TEAL_SOFT: [number, number, number] = [153, 246, 228];
 const MUTED: [number, number, number] = [100, 116, 139];
 const LINE: [number, number, number] = [226, 232, 240];
 
+/**
+ * Geometría del icono de billetera de la marca en una caja 64×64.
+ * Espejo de `WALLET_GEOMETRY` en `src/components/Logo.tsx`.
+ */
+const WALLET = {
+  body: { x: 3, y: 19, w: 50, h: 39, r: 8.5 },
+  card: [
+    [16.9, 15.6],
+    [43.5, 7.0],
+    [47.2, 18.4],
+    [20.6, 27.0],
+  ] as const,
+  cardLines: [
+    [
+      [21.0, 17.0],
+      [41.0, 10.6],
+    ],
+    [
+      [22.5, 19.9],
+      [41.7, 13.7],
+    ],
+  ] as const,
+  clasp: { x: 46, y: 28, w: 15, h: 17, r: 6 },
+  claspDot: { cx: 53.5, cy: 36.5, r: 2.7 },
+  coins: [
+    [
+      [6, 46],
+      [16, 41],
+      [25, 46],
+      [25, 52],
+      [16, 57],
+      [6, 52],
+    ],
+    [
+      [25, 49],
+      [31, 46],
+      [37, 49],
+      [37, 54],
+      [31, 57],
+      [25, 54],
+    ],
+  ] as const,
+  coinRidges: [
+    [
+      [6, 46],
+      [16, 51],
+      [25, 46],
+    ],
+    [
+      [25, 49],
+      [31, 52],
+      [37, 49],
+    ],
+  ] as const,
+};
+
+/** Traza un polígono/polilínea de la geometría de la billetera (caja 64×64) escalada. */
+function walletPath(
+  doc: jsPDF,
+  points: ReadonlyArray<readonly [number, number]>,
+  originX: number,
+  originY: number,
+  k: number,
+  style: 'FD' | 'S',
+  closed: boolean,
+): void {
+  const [start] = points;
+  const deltas = points
+    .slice(1)
+    .map(([px, py], index): [number, number] => {
+      const [qx, qy] = points[index];
+      return [(px - qx) * k, (py - qy) * k];
+    });
+  doc.lines(deltas, originX + start[0] * k, originY + start[1] * k, [1, 1], style, closed);
+}
+
+/**
+ * Icono de billetera de Neru (línea blanca) para las cabeceras del PDF.
+ * Se dibuja sobre el fondo oscuro usando el color de tinta como relleno de recorte.
+ */
+function drawWalletMark(doc: jsPDF, x: number, y: number, size: number): void {
+  const k = size / 64;
+
+  doc.setLineJoin('round');
+  doc.setLineCap('round');
+  doc.setLineWidth(Math.max(0.22, size * 0.052));
+  doc.setDrawColor(255, 255, 255);
+
+  // Cuerpo de la billetera
+  doc.roundedRect(
+    x + WALLET.body.x * k,
+    y + WALLET.body.y * k,
+    WALLET.body.w * k,
+    WALLET.body.h * k,
+    WALLET.body.r * k,
+    WALLET.body.r * k,
+    'S',
+  );
+
+  // Monedas apiladas (relleno de tinta para recortar el borde del cuerpo)
+  doc.setFillColor(...INK);
+  for (const coin of WALLET.coins) walletPath(doc, coin, x, y, k, 'FD', true);
+  for (const ridge of WALLET.coinRidges) walletPath(doc, ridge, x, y, k, 'S', false);
+
+  // Tarjeta asomando por arriba
+  walletPath(doc, WALLET.card, x, y, k, 'FD', true);
+  for (const line of WALLET.cardLines) walletPath(doc, line, x, y, k, 'S', false);
+
+  // Cierre lateral con botón
+  doc.roundedRect(
+    x + WALLET.clasp.x * k,
+    y + WALLET.clasp.y * k,
+    WALLET.clasp.w * k,
+    WALLET.clasp.h * k,
+    WALLET.clasp.r * k,
+    WALLET.clasp.r * k,
+    'FD',
+  );
+  doc.setFillColor(255, 255, 255);
+  doc.circle(x + WALLET.claspDot.cx * k, y + WALLET.claspDot.cy * k, WALLET.claspDot.r * k, 'F');
+}
+
 /** Intl usa espacios especiales; la fuente WinAnsi de jsPDF solo entiende ASCII. */
 function pdfText(value: string): string {
   return value.replace(/[\u00A0\u202F\u2009]/g, ' ');
@@ -56,13 +178,8 @@ function drawBrandHeader(doc: jsPDF, data: PdfInvoiceData): void {
   doc.setFillColor(...INK);
   doc.rect(0, 0, PAGE_W, 44, 'F');
 
-  // Marca: tile teal con "N"
-  doc.setFillColor(...TEAL);
-  doc.roundedRect(MARGIN, 12.5, 17, 17, 4.5, 4.5, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text('N', MARGIN + 8.5, 23.2, { align: 'center' });
+  // Marca: icono de billetera de Neru
+  drawWalletMark(doc, MARGIN, 12.5, 17);
 
   // Wordmark
   doc.setTextColor(255, 255, 255);
@@ -104,12 +221,7 @@ function drawBrandHeader(doc: jsPDF, data: PdfInvoiceData): void {
 function drawContinuationHeader(doc: jsPDF, data: PdfInvoiceData): void {
   doc.setFillColor(...INK);
   doc.rect(0, 0, PAGE_W, 18, 'F');
-  doc.setFillColor(...TEAL);
-  doc.roundedRect(MARGIN, 4.5, 9, 9, 2.4, 2.4, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('N', MARGIN + 4.5, 10.6, { align: 'center' });
+  drawWalletMark(doc, MARGIN, 4.5, 9);
 
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(9);

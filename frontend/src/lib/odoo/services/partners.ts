@@ -1,6 +1,6 @@
 /** Clientes (res.partner): consulta, alta y ranking de frecuencia. */
 import type { OdooClient } from '../client';
-import type { Domain, Partner, PartnerInput } from '../types';
+import type { Domain, Many2One, Partner, PartnerInput } from '../types';
 
 const PARTNER_FIELDS = [
   'name',
@@ -12,7 +12,6 @@ const PARTNER_FIELDS = [
   'city',
   'country_id',
   'customer_rank',
-  'sale_order_count',
   'is_company',
 ];
 
@@ -20,6 +19,48 @@ export interface PartnerQuery {
   search?: string;
   limit?: number;
   offset?: number;
+}
+
+interface InvoiceGroup {
+  partner_id: Many2One;
+  partner_id_count: number;
+}
+
+/**
+ * Cuenta las facturas publicadas por cliente.
+ * Es la fuente real del historial de compras: el POS de Neru emite
+ * `account.move`, no pedidos de venta, así que `sale_order_count` queda en 0.
+ */
+async function invoiceCounts(
+  client: OdooClient,
+  partnerIds?: number[],
+): Promise<Map<number, number>> {
+  const domain: Domain = [
+    ['move_type', '=', 'out_invoice'],
+    ['state', '=', 'posted'],
+  ];
+  if (partnerIds && partnerIds.length > 0) domain.push(['partner_id', 'in', partnerIds]);
+
+  const groups = await client.executeKw<InvoiceGroup[]>('account.move', 'read_group', [
+    domain,
+    ['partner_id'],
+    ['partner_id'],
+  ]);
+
+  const counts = new Map<number, number>();
+  for (const group of groups) {
+    if (Array.isArray(group.partner_id)) {
+      counts.set(group.partner_id[0], group.partner_id_count ?? 0);
+    }
+  }
+  return counts;
+}
+
+/** Añade `invoice_count` a cada cliente con una sola consulta agregada. */
+async function withInvoiceCounts(client: OdooClient, rows: Partner[]): Promise<Partner[]> {
+  if (rows.length === 0) return rows;
+  const counts = await invoiceCounts(client, rows.map((row) => row.id));
+  return rows.map((row) => ({ ...row, invoice_count: counts.get(row.id) ?? 0 }));
 }
 
 /** Listado de clientes con búsqueda por nombre, email, teléfono o NIT. */
@@ -34,28 +75,40 @@ export async function listPartners(client: OdooClient, query: PartnerQuery = {})
     domain.push(['customer_rank', '>', 0]);
   }
 
-  return client.searchRead<Partner>('res.partner', {
+  const rows = await client.searchRead<Partner>('res.partner', {
     domain,
     fields: PARTNER_FIELDS,
     limit,
     offset,
     order: 'name asc',
   });
+
+  return withInvoiceCounts(client, rows);
 }
 
 /**
- * "Clientes más frecuentes": ordenados por número de ventas registradas.
- * sale_order_count es un campo calculado de res.partner (módulo sale).
+ * "Clientes más frecuentes": ordenados por facturas publicadas.
+ * Usa `account.move` porque las ventas de Neru no crean pedidos de venta.
  */
 export async function listFrequentPartners(client: OdooClient, limit = 10): Promise<Partner[]> {
-  return client.searchRead<Partner>('res.partner', {
-    domain: [
-      ['customer_rank', '>', 0],
-      ['sale_order_count', '>', 0],
-    ],
-    fields: PARTNER_FIELDS,
-    limit,
-    order: 'sale_order_count desc, name asc',
+  const counts = await invoiceCounts(client);
+  const top = [...counts.entries()]
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+    .slice(0, limit);
+
+  if (top.length === 0) return [];
+
+  const rows = await client.read<Partner>(
+    'res.partner',
+    top.map(([id]) => id),
+    PARTNER_FIELDS,
+  );
+  const byId = new Map(rows.map((row) => [row.id, row]));
+
+  return top.flatMap(([id, count]) => {
+    const partner = byId.get(id);
+    return partner ? [{ ...partner, invoice_count: count }] : [];
   });
 }
 
@@ -88,4 +141,12 @@ export async function getPartner(client: OdooClient, partnerId: number): Promise
 /** Total de clientes registrados (para contadores de UI). */
 export async function countPartners(client: OdooClient): Promise<number> {
   return client.searchCount('res.partner', [['customer_rank', '>', 0]]);
+}
+
+/** Total de facturas de cliente publicadas (para contadores de UI). */
+export async function countCustomerInvoices(client: OdooClient): Promise<number> {
+  return client.searchCount('account.move', [
+    ['move_type', '=', 'out_invoice'],
+    ['state', '=', 'posted'],
+  ]);
 }

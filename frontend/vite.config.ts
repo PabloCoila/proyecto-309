@@ -15,7 +15,8 @@ export default defineConfig({
     // Odoo no emite cabeceras CORS: el navegador habla con Vite y Vite con Odoo.
     proxy: {
       '/odoo': {
-        target: 'http://localhost:8069',
+        // 127.0.0.1 evita que Node resuelva "localhost" a ::1 (Docker publica IPv4).
+        target: 'http://127.0.0.1:8069',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/odoo/, ''),
       },

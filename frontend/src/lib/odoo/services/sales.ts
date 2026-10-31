@@ -2,6 +2,13 @@
 import type { OdooClient } from '../client';
 import { OdooError } from '../errors';
 import type { CartLine, Invoice, SaleInput, SaleOrder } from '../types';
+import {
+  cancelStockDelivery,
+  prepareStockDelivery,
+  reserveStockDelivery,
+  validateStockDelivery,
+} from './inventory';
+import type { StockReservation } from './inventory';
 
 const INVOICE_FIELDS = [
   'name',
@@ -31,7 +38,16 @@ function localDate(): string {
 }
 
 /**
- * Crea y publica una factura de cliente en Odoo.
+ * Crea y publica una factura de cliente en Odoo y descuenta el stock.
+ *
+ * Flujo:
+ *  1. Valida disponibilidad y prepara la salida (sin escribir nada).
+ *  2. Reserva el albarán de salida (stock.picking + action_assign).
+ *  3. Crea y publica la factura (account.move + action_post).
+ *  4. Valida el albarán, que descuenta `qty_available` / `free_qty`.
+ *
+ * Si un paso falla, se compensan los anteriores (cancelar albarán y revertir
+ * la factura) para no dejar ventas sin inventario ni reservas huérfanas.
  * Los totales devueltos son los calculados por Odoo (impuestos incluidos).
  */
 export async function createInvoice(
@@ -40,28 +56,86 @@ export async function createInvoice(
 ): Promise<Invoice> {
   assertLines(input.lines);
 
-  const moveId = await client.create('account.move', {
-    move_type: 'out_invoice',
-    partner_id: input.partnerId,
-    invoice_date: input.invoiceDate ?? localDate(),
-    invoice_line_ids: input.lines.map((line) => [
-      0,
-      0,
-      {
-        product_id: line.productId,
-        quantity: line.quantity,
-        price_unit: line.unitPrice,
-        ...(line.description ? { name: line.description } : {}),
-      },
-    ]),
-    ...(input.note ? { narration: input.note } : {}),
-  });
+  const delivery = await prepareStockDelivery(
+    client,
+    input.lines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+  );
 
-  await client.callButton('account.move', 'action_post', [moveId]);
+  let reservation: StockReservation | null = null;
+  let moveId: number | null = null;
+
+  try {
+    if (delivery) reservation = await reserveStockDelivery(client, delivery);
+
+    moveId = await client.create('account.move', {
+      move_type: 'out_invoice',
+      partner_id: input.partnerId,
+      invoice_date: input.invoiceDate ?? localDate(),
+      invoice_line_ids: input.lines.map((line) => [
+        0,
+        0,
+        {
+          product_id: line.productId,
+          quantity: line.quantity,
+          price_unit: line.unitPrice,
+          ...(line.description ? { name: line.description } : {}),
+        },
+      ]),
+      ...(input.note ? { narration: input.note } : {}),
+    });
+
+    await client.callButton('account.move', 'action_post', [moveId]);
+  } catch (error) {
+    if (reservation) await cancelStockDelivery(client, reservation);
+    if (moveId) await discardInvoice(client, moveId);
+    throw error;
+  }
 
   const [invoice] = await client.read<Invoice>('account.move', [moveId], INVOICE_FIELDS);
-  if (!invoice) throw new OdooError({ message: 'La factura se creó pero no pudo leerse.' });
+  if (!invoice) {
+    if (reservation) await cancelStockDelivery(client, reservation);
+    await discardInvoice(client, moveId);
+    throw new OdooError({ message: 'La factura se creó pero no pudo leerse.' });
+  }
+
+  if (reservation) {
+    const invoiceRef = `Factura ${invoice.name || invoice.id}`;
+    try {
+      await client.write('stock.picking', [reservation.pickingId], { origin: invoiceRef });
+    } catch {
+      /* la referencia del albarán es informativa */
+    }
+
+    try {
+      await validateStockDelivery(client, reservation);
+    } catch (cause) {
+      const discarded = await discardInvoice(client, moveId);
+      await cancelStockDelivery(client, reservation);
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      throw new OdooError({
+        message: discarded
+          ? `No se pudo registrar la salida de stock, así que la factura no se emitió. ${detail}`
+          : `La factura ${invoice.name || invoice.id} quedó publicada, pero el stock no se descontó. Corrige la salida en Odoo. ${detail}`,
+      });
+    }
+  }
+
   return invoice;
+}
+
+/** Revierte una factura recién creada; devuelve true si logró eliminarla. */
+async function discardInvoice(client: OdooClient, invoiceId: number): Promise<boolean> {
+  try {
+    await client.callButton('account.move', 'button_draft', [invoiceId]);
+  } catch {
+    /* si el asiento no permite volver a borrador, se intenta eliminar igual */
+  }
+  try {
+    await client.unlink('account.move', [invoiceId]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

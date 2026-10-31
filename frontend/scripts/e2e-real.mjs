@@ -33,6 +33,7 @@ async function rpc(service, method, args) {
 const browser = await chromium.launch({ executablePath: EDGE, headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
 const page = await context.newPage();
+page.setDefaultTimeout(60000);
 
 const consoleErrors = [];
 page.on('console', (message) => {
@@ -57,7 +58,7 @@ async function shot(name) {
 try {
   // 1. Login real contra Odoo
   await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-  await page.getByText(/servidor local activo/).waitFor({ timeout: 15000 });
+  await page.getByRole('heading', { name: 'Inicia sesión' }).waitFor({ timeout: 15000 });
   await shot('01-login.png');
 
   await page.getByRole('button', { name: 'Entrar' }).click();
@@ -69,6 +70,15 @@ try {
   await page.getByRole('button', { name: /Ajustar stock de Teclado mec/ }).click();
   await page.getByRole('heading', { name: 'Ajuste de inventario' }).waitFor();
   await page.getByLabel('Nueva cantidad').fill('12');
+  await page.getByRole('button', { name: 'Guardar ajuste' }).click();
+  await page.getByText('Stock actualizado').waitFor({ timeout: 20000 });
+  await page.getByRole('heading', { name: 'Ajuste de inventario' }).waitFor({ state: 'detached' });
+  await page.waitForTimeout(800);
+  await dismissToasts();
+
+  await page.getByRole('button', { name: /Ajustar stock de Monitor 27/ }).click();
+  await page.getByRole('heading', { name: 'Ajuste de inventario' }).waitFor();
+  await page.getByLabel('Nueva cantidad').fill('8');
   await page.getByRole('button', { name: 'Guardar ajuste' }).click();
   await page.getByText('Stock actualizado').waitFor({ timeout: 20000 });
   await page.getByRole('heading', { name: 'Ajuste de inventario' }).waitFor({ state: 'detached' });
@@ -98,7 +108,7 @@ try {
   await page.getByRole('button', { name: /Monitor 27/ }).first().click();
   await dismissToasts();
   await page.getByRole('button', { name: /Seleccionar cliente/ }).click();
-  await page.getByRole('button', { name: /Cliente Demo/ }).click();
+  await page.getByRole('button', { name: /Cliente Demo/ }).first().click();
   await page.waitForTimeout(400);
   await shot('04-venta.png');
 
@@ -110,7 +120,7 @@ try {
   await shot('05-factura.png');
 
   const [download] = await Promise.all([
-    page.waitForEvent('download'),
+    page.waitForEvent('download', { timeout: 90000 }),
     page.getByRole('button', { name: /Descargar factura PDF/ }).click(),
   ]);
   const pdfPath = resolve('../docs/factura-real.pdf');
@@ -136,6 +146,26 @@ try {
     [[['product_id.default_code', '=', 'KB-001'], ['location_id.usage', '=', 'internal']]],
     { fields: ['quantity', 'location_id'] },
   ]);
+  const [picking] = await rpc('object', 'execute_kw', [
+    DB,
+    uid,
+    PASSWORD,
+    'stock.picking',
+    'search_read',
+    [[['picking_type_code', '=', 'outgoing'], ['state', '=', 'done']]],
+    { fields: ['name', 'state', 'origin'], order: 'id desc', limit: 1 },
+  ]);
+  const stockMoves = picking
+    ? await rpc('object', 'execute_kw', [
+        DB,
+        uid,
+        PASSWORD,
+        'stock.move',
+        'search_read',
+        [[['picking_id', '=', picking.id]]],
+        { fields: ['product_id', 'product_uom_qty', 'quantity', 'state'] },
+      ])
+    : [];
   const [partner] = await rpc('object', 'execute_kw', [
     DB,
     uid,
@@ -149,6 +179,8 @@ try {
   const report = {
     invoice,
     stockKB001: quants.reduce((total, quant) => total + quant.quantity, 0),
+    picking,
+    stockMoves,
     partner,
     pdf: pdfPath,
     invoiceName,
@@ -159,7 +191,9 @@ try {
   console.log(JSON.stringify(report, null, 2));
 
   if (!invoice || invoice.state !== 'posted') throw new Error('La factura no quedó publicada en Odoo');
-  if (report.stockKB001 !== 12) throw new Error(`Stock inesperado: ${report.stockKB001}`);
+  if (report.stockKB001 !== 11) throw new Error(`Stock inesperado: ${report.stockKB001} (se esperaban 11)`);
+  if (!picking || picking.state !== 'done') throw new Error('No se creó/validó el albarán de salida');
+  if (stockMoves.length === 0) throw new Error('El albarán no tiene movimientos de stock');
   if (consoleErrors.length > 0) throw new Error(`Errores de consola: ${consoleErrors.join(' | ')}`);
   console.log('E2E REAL OK');
 } catch (error) {
