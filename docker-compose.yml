@@ -1,10 +1,10 @@
-# Proyecto 309 — Infra local (Odoo Community 17 + PostgreSQL 15)
+# Neru — Infra local (Odoo Community 17 + PostgreSQL 15)
 # Uso: docker compose up -d
 
 services:
   db:
     image: postgres:15-alpine
-    container_name: p309-db
+    container_name: neru-db
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: odoo
@@ -20,7 +20,7 @@ services:
 
   odoo:
     image: odoo:17.0
-    container_name: p309-odoo
+    container_name: neru-odoo
     depends_on:
       db:
         condition: service_healthy

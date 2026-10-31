@@ -37,7 +37,7 @@ export function Modal({ open, onClose, title, description, children, footer, wid
           <motion.button
             type="button"
             aria-label="Cerrar"
-            className="absolute inset-0 h-full w-full cursor-default bg-ink-950/80 backdrop-blur-sm"
+            className="absolute inset-0 h-full w-full cursor-default bg-slate-900/40 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -53,19 +53,19 @@ export function Modal({ open, onClose, title, description, children, footer, wid
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className={clsx(
-              'relative z-10 w-full overflow-hidden rounded-t-2xl border border-white/10 bg-ink-900 shadow-panel sm:rounded-2xl',
+              'relative z-10 w-full overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-panel sm:rounded-2xl',
               width,
             )}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-white/[0.07] px-6 py-5">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
               <div>
-                <h2 className="text-base font-semibold text-white">{title}</h2>
-                {description ? <p className="mt-1 text-xs text-slate-400">{description}</p> : null}
+                <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+                {description ? <p className="mt-1 text-xs text-slate-600">{description}</p> : null}
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/5 hover:text-white"
+                className="rounded-lg p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                 aria-label="Cerrar"
               >
                 <X className="h-4 w-4" />
@@ -73,7 +73,7 @@ export function Modal({ open, onClose, title, description, children, footer, wid
             </div>
             <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
             {footer ? (
-              <div className="flex items-center justify-end gap-2 border-t border-white/[0.07] bg-white/[0.015] px-6 py-4">
+              <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
                 {footer}
               </div>
             ) : null}

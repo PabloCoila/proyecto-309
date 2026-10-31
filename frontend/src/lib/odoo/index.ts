@@ -1,5 +1,5 @@
 /**
- * Proyecto 309 — API de Odoo (headless).
+ * Neru — API de Odoo (headless).
  *
  * Uso:
  *   import { getOdooClient, auth, inventory } from '@/lib/odoo';

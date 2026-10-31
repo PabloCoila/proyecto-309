@@ -3,12 +3,12 @@
 Product = env['product.product']
 
 # Marca visible en la barra superior de Odoo
-if env.company.name != 'Proyecto 309':
-    env.company.name = 'Proyecto 309'
+if env.company.name != 'Neru':
+    env.company.name = 'Neru'
     print('EMPRESA RENOMBRADA:', env.company.name)
 
 catalog = [
-    ('Teclado mecánico Pro 309', 'KB-309', 420.0),
+    ('Teclado mecánico Neru', 'KB-001', 420.0),
     ('Monitor 27 pulgadas 165 Hz', 'MON-27', 2150.0),
     ('Cable USB-C trenzado 2 m', 'CAB-2M', 85.0),
 ]
@@ -29,7 +29,7 @@ for name, code, price in catalog:
         print('EXISTE', product.id, product.name, product.list_price)
 
 env.cr.commit()
-print('TOTAL PRODUCTOS:', Product.search_count([('default_code', 'in', ['KB-309', 'MON-27', 'CAB-2M'])]))
+print('TOTAL PRODUCTOS:', Product.search_count([('default_code', 'in', ['KB-001', 'MON-27', 'CAB-2M'])]))
 print('ALMACENES:', env['stock.warehouse'].search_count([]))
 for location in env['stock.location'].search([('usage', '=', 'internal')]):
     print('UBICACION', location.complete_name)

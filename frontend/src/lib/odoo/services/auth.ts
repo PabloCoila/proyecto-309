@@ -43,7 +43,7 @@ export async function getCurrentUser(client: OdooClient, uid: number): Promise<O
     login: row.login,
     lang: row.lang,
     company_id: row.company_id,
-    company_name: Array.isArray(row.company_id) ? row.company_id[1] : 'Proyecto 309',
+    company_name: Array.isArray(row.company_id) ? row.company_id[1] : 'Neru',
   };
 }
 

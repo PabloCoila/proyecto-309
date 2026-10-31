@@ -1,6 +1,6 @@
 /**
  * Tipos compartidos para el cliente JSON-RPC de Odoo.
- * Proyecto 309 — capa de datos (headless).
+ * Neru — capa de datos (headless).
  */
 
 /** Dominio Odoo: lista de condiciones y operadores lógicos. */

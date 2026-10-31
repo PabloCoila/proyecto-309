@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ArrowDownToLine,
   Boxes,
   MapPin,
   Minus,
@@ -44,6 +43,7 @@ export function InventoryPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Product | null>(null);
+  const [newProductOpen, setNewProductOpen] = useState(false);
 
   const fetchProducts = useCallback(
     async (notify = false) => {
@@ -107,24 +107,35 @@ export function InventoryPage() {
     void refreshAll();
   };
 
+  const handleProductCreated = () => {
+    setNewProductOpen(false);
+    toast.success('Producto creado', 'El producto quedó registrado en Odoo.');
+    void refreshAll();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="label text-gold-400/80">Apartado 1</p>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white">Inventario y almacén</h1>
-          <p className="mt-1 text-[13px] text-slate-400">
-            Existencias a mano, ubicaciones internas y ajustes registrados directamente en Odoo.
-          </p>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-petrol-900">Inventario y almacén</h1>
         </div>
-        <Button
-          variant="secondary"
-          onClick={() => void refreshAll()}
-          loading={refreshing}
-          icon={<RefreshCw className="h-4 w-4" />}
-        >
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            onClick={() => setNewProductOpen(true)}
+            icon={<Plus className="h-4 w-4" />}
+          >
+            Agregar producto
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => void refreshAll()}
+            loading={refreshing}
+            icon={<RefreshCw className="h-4 w-4" />}
+          >
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -132,26 +143,23 @@ export function InventoryPage() {
           label="Productos almacenables"
           value={summary ? summary.products : '—'}
           icon={<Package className="h-4 w-4" />}
-          hint="product.product · tipo almacenable"
         />
         <Stat
           label="Referencias con stock"
           value={summary ? summary.quants : '—'}
           icon={<Boxes className="h-4 w-4" />}
-          hint="quants con cantidad distinta de cero"
         />
         <Stat
           label="Ubicaciones internas"
           value={summary ? summary.locations : '—'}
           icon={<Warehouse className="h-4 w-4" />}
           accent
-          hint="stock.location"
         />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_310px]">
         <section className="surface overflow-hidden">
-          <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-4 py-3.5">
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3.5">
             <div className="min-w-[200px] flex-1">
               <Input
                 value={search}
@@ -167,10 +175,10 @@ export function InventoryPage() {
               role="switch"
               aria-checked={onlyStock}
               onClick={() => setOnlyStock((current) => !current)}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-xs font-medium text-slate-300 transition hover:border-white/20"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 transition hover:border-slate-300"
             >
               <span
-                className={`relative h-4 w-7 rounded-full transition-colors ${onlyStock ? 'bg-gold-500' : 'bg-white/15'}`}
+                className={`relative h-4 w-7 rounded-full transition-colors ${onlyStock ? 'bg-gold-500' : 'bg-slate-200'}`}
               >
                 <span
                   className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${onlyStock ? 'left-3.5' : 'left-0.5'}`}
@@ -203,7 +211,7 @@ export function InventoryPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.06] text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
+                  <tr className="border-b border-slate-200 text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
                     <th className="px-3 py-2.5 font-medium">Producto</th>
                     <th className="px-3 py-2.5 font-medium">Categoría</th>
                     <th className="px-3 py-2.5 text-right font-medium">En mano</th>
@@ -212,7 +220,7 @@ export function InventoryPage() {
                     <th className="px-3 py-2.5" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.05]">
+                <tbody className="divide-y divide-slate-200">
                   {products.map((product) => {
                     const category = Array.isArray(product.categ_id) ? product.categ_id[1] : 'Sin categoría';
                     const uom = Array.isArray(product.uom_id) ? product.uom_id[1] : 'u.';
@@ -228,11 +236,11 @@ export function InventoryPage() {
                       >
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-3">
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-gold-300">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-gold-300">
                               <Package className="h-4 w-4" aria-hidden />
                             </span>
                             <div className="min-w-0 max-w-[220px]">
-                              <p className="truncate font-medium text-slate-100">{product.name}</p>
+                              <p className="truncate font-medium text-slate-900">{product.name}</p>
                               <p className="truncate font-mono text-[10.5px] text-slate-500">
                                 {displayCode(product.default_code)}
                                 {product.barcode ? ` · ${product.barcode}` : ''}
@@ -244,7 +252,7 @@ export function InventoryPage() {
                           <Badge>{category}</Badge>
                         </td>
                         <td className="px-3 py-3 text-right">
-                          <span className={`font-semibold ${hasStock ? 'text-slate-100' : 'text-slate-500'}`}>
+                          <span className={`font-semibold ${hasStock ? 'text-slate-900' : 'text-slate-500'}`}>
                             {formatQty(product.qty_available)}
                           </span>
                           <span className="ml-1 text-[10.5px] text-slate-500">{uom}</span>
@@ -254,7 +262,7 @@ export function InventoryPage() {
                             {formatQty(product.free_qty)}
                           </Badge>
                         </td>
-                        <td className="px-3 py-3 text-right text-slate-300">
+                        <td className="px-3 py-3 text-right text-slate-700">
                           {formatMoney(product.list_price, currency)}
                         </td>
                         <td className="px-3 py-3 text-right">
@@ -276,50 +284,36 @@ export function InventoryPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between border-t border-white/[0.06] px-4 py-2.5 text-[11px] text-slate-500">
+          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-2.5 text-[11px] text-slate-500">
             <span>{products.length} producto(s)</span>
-            <span className="hidden sm:inline">Cantidades leídas de stock.quant · Odoo</span>
           </div>
         </section>
 
         <div className="space-y-5">
           <section className="surface p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Ubicaciones</h2>
-              <span className="label">Internas</span>
+              <h2 className="text-sm font-semibold text-slate-900">Ubicaciones</h2>
             </div>
             <div className="mt-3 space-y-2">
               {locations.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-white/10 px-3 py-4 text-center text-[11px] text-slate-500">
-                  {loading ? 'Cargando almacenes…' : 'Sin ubicaciones internas en Odoo.'}
+                <p className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-[11px] text-slate-500">
+                  Sin ubicaciones internas en Odoo.
                 </p>
               ) : (
                 locations.map((location) => (
                   <div
                     key={location.id}
-                    className="flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2"
+                    className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
                   >
                     <MapPin className="h-3.5 w-3.5 shrink-0 text-gold-400" aria-hidden />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium text-slate-200">{shortLocation(location.complete_name)}</p>
+                      <p className="truncate text-xs font-medium text-slate-800">{shortLocation(location.complete_name)}</p>
                       <p className="truncate font-mono text-[10px] text-slate-500">{location.complete_name}</p>
                     </div>
                   </div>
                 ))
               )}
             </div>
-          </section>
-
-          <section className="surface border-gold-500/15 p-4">
-            <div className="flex items-center gap-2 text-gold-300">
-              <ArrowDownToLine className="h-4 w-4" aria-hidden />
-              <h2 className="text-sm font-semibold">Entradas y ajustes</h2>
-            </div>
-            <p className="mt-2 text-[11.5px] leading-relaxed text-slate-400">
-              Cada ajuste fija la cantidad exacta en la ubicación elegida y se aplica como inventario
-              físico (<span className="font-mono text-[10.5px] text-slate-300">action_apply_inventory</span>).
-              Odoo registra el movimiento y actualiza la existencia a mano.
-            </p>
           </section>
         </div>
       </div>
@@ -330,6 +324,12 @@ export function InventoryPage() {
         currency={currency}
         onClose={() => setSelected(null)}
         onDone={handleAdjusted}
+      />
+
+      <NewProductModal
+        open={newProductOpen}
+        onClose={() => setNewProductOpen(false)}
+        onDone={handleProductCreated}
       />
     </div>
   );
@@ -438,12 +438,12 @@ function AdjustStockModal({
     >
       {product ? (
         <div className="space-y-5">
-          <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-gold-500/25 bg-gold-500/10 text-gold-300">
               <Package className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-white">{product.name}</p>
+              <p className="truncate text-sm font-medium text-slate-900">{product.name}</p>
               <p className="font-mono text-[11px] text-slate-500">
                 {displayCode(product.default_code)} · precio {formatMoney(product.list_price, currency)}
               </p>
@@ -465,9 +465,9 @@ function AdjustStockModal({
           </Select>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
               <p className="label">Cantidad actual</p>
-              <p className="mt-1 text-lg font-semibold text-slate-200">
+              <p className="mt-1 text-lg font-semibold text-slate-800">
                 {loading ? <Spinner /> : formatQty(current ?? 0)}
               </p>
             </div>
@@ -516,6 +516,143 @@ function AdjustStockModal({
           </p>
         </div>
       ) : null}
+    </Modal>
+  );
+}
+
+function NewProductModal({
+  open,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { client } = useSession();
+  const toast = useToast();
+
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [type, setType] = useState<'product' | 'consu' | 'service'>('product');
+  const [size, setSize] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; price?: string }>({});
+
+  useEffect(() => {
+    if (!open) return;
+    setName('');
+    setCode('');
+    setType('product');
+    setSize('');
+    setDescription('');
+    setPrice('');
+    setErrors({});
+  }, [open]);
+
+  const submit = async () => {
+    const nextErrors: { name?: string; price?: string } = {};
+    if (!name.trim()) nextErrors.name = 'El nombre es obligatorio.';
+    const priceNum = Number.parseFloat(price);
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      nextErrors.price = 'Ingresa un precio válido (mayor o igual a 0).';
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setSaving(true);
+    try {
+      await inventory.createProduct(client, {
+        name: name.trim(),
+        default_code: code.trim() || undefined,
+        detailed_type: type,
+        size: size.trim() || undefined,
+        description: description.trim() || undefined,
+        list_price: priceNum,
+      });
+      onDone();
+    } catch (cause) {
+      toast.error('No se pudo crear el producto', friendlyMessage(cause));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Nuevo producto"
+      description="Registra un producto en el catálogo de Odoo."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void submit()} loading={saving}>
+            Guardar producto
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Input
+          label="Nombre *"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Nombre del producto"
+          error={errors.name}
+          autoFocus
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Etiqueta / código interno"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            placeholder="Ej. KB-001"
+          />
+          <Select label="Tipo de producto" value={type} onChange={(event) => setType(event.target.value as any)}>
+            <option value="product">Almacenable</option>
+            <option value="consu">Consumible</option>
+            <option value="service">Servicio</option>
+          </Select>
+        </div>
+
+        <Input
+          label="Tamaño"
+          value={size}
+          onChange={(event) => setSize(event.target.value)}
+          placeholder="Ej. 27 pulgadas, 2 m, talla M"
+        />
+
+        <Input
+          label="Descripción"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          placeholder="Detalles del producto"
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Precio unitario *"
+            type="number"
+            step="0.01"
+            min="0"
+            value={price}
+            onChange={(event) => setPrice(event.target.value)}
+            placeholder="0.00"
+            error={errors.price}
+          />
+        </div>
+
+        <p className="text-[11px] leading-relaxed text-slate-500">
+          El producto se crea en <span className="font-mono text-[10.5px] text-slate-700">product.template</span> y
+          quedará disponible para vender desde el módulo de Facturación.
+        </p>
+      </div>
     </Modal>
   );
 }

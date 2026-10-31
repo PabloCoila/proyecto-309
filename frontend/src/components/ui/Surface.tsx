@@ -4,11 +4,11 @@ import clsx from 'clsx';
 type Tone = 'neutral' | 'gold' | 'success' | 'warning' | 'danger';
 
 const TONES: Record<Tone, string> = {
-  neutral: 'border-white/10 bg-white/[0.05] text-slate-300',
+  neutral: 'border-slate-200 bg-slate-50 text-slate-700',
   gold: 'border-gold-500/30 bg-gold-500/10 text-gold-300',
-  success: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300',
-  warning: 'border-amber-500/25 bg-amber-500/10 text-amber-300',
-  danger: 'border-rose-500/25 bg-rose-500/10 text-rose-300',
+  success: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700',
+  warning: 'border-amber-500/25 bg-amber-500/10 text-amber-700',
+  danger: 'border-rose-500/25 bg-rose-500/10 text-rose-600',
 };
 
 export function Badge({
@@ -51,7 +51,7 @@ export function SectionTitle({
   return (
     <div className={clsx('flex flex-wrap items-end justify-between gap-3', className)}>
       <div>
-        <h2 className="text-[15px] font-semibold text-white">{title}</h2>
+        <h2 className="text-[15px] font-semibold text-petrol-900">{title}</h2>
         {description ? <p className="mt-0.5 text-xs text-slate-500">{description}</p> : null}
       </div>
       {action}

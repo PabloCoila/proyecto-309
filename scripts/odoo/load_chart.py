@@ -1,5 +1,5 @@
-# Carga el plan contable boliviano en la base `proyecto309`.
-# Ejecutar con: odoo shell -d proyecto309 < /tmp/load_chart.py
+# Carga el plan contable boliviano en la base `neru`.
+# Ejecutar con: odoo shell -d neru < /tmp/load_chart.py
 company = env.company
 country = env['res.country'].search([('code', '=', 'BO')], limit=1)
 currency = env['res.currency'].search([('name', '=', 'BOB')], limit=1)

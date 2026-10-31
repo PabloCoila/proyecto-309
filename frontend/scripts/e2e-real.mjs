@@ -1,7 +1,7 @@
 /**
  * E2E real: navegador contra la app y contra Odoo (sin mocks).
- * Requiere: Odoo en :8069 con la base proyecto309, plan contable BO y
- * productos KB-309/MON-27/CAB-2M; dev server de Vite en :5173.
+ * Requiere: Odoo en :8069 con la base neru, plan contable BO y
+ * productos KB-001/MON-27/CAB-2M; dev server de Vite en :5173.
  *
  * Uso: node scripts/e2e-real.mjs
  */
@@ -11,7 +11,7 @@ import { resolve } from 'node:path';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:5173';
 const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
-const DB = process.env.ODOO_DB ?? 'proyecto309';
+const DB = process.env.ODOO_DB ?? 'neru';
 const USER = process.env.ODOO_USER ?? 'admin';
 const PASSWORD = process.env.ODOO_PASSWORD ?? 'admin';
 const EDGE =
@@ -60,7 +60,7 @@ try {
   await page.getByText(/servidor local activo/).waitFor({ timeout: 15000 });
   await shot('01-login.png');
 
-  await page.getByRole('button', { name: /Entrar a Proyecto 309/ }).click();
+  await page.getByRole('button', { name: 'Entrar' }).click();
   await page.waitForURL('**/inventario');
   await page.getByText(/Teclado mec/).first().waitFor({ timeout: 20000 });
   await page.waitForTimeout(500);
@@ -80,14 +80,14 @@ try {
   await page.waitForURL('**/clientes');
   await page.getByRole('button', { name: 'Nuevo cliente' }).first().click();
   await page.getByRole('heading', { name: 'Nuevo cliente' }).waitFor();
-  await page.getByLabel('Nombre *').fill('Cliente Demo 309');
-  await page.getByLabel('Email').fill('demo@proyecto309.local');
-  await page.getByLabel('Teléfono').fill('+591 700 30900');
-  await page.getByLabel('NIT / CI').fill('900309001');
+  await page.getByLabel('Nombre *').fill('Cliente Demo');
+  await page.getByLabel('Email').fill('demo@neru.local');
+  await page.getByLabel('Teléfono').fill('+591 700 30000');
+  await page.getByLabel('NIT / CI').fill('900300001');
   await page.getByLabel('Ciudad').fill('La Paz');
   await page.getByRole('button', { name: 'Crear cliente' }).click();
   await page.getByText('Cliente creado').waitFor({ timeout: 20000 });
-  await page.getByText('Cliente Demo 309').first().waitFor({ timeout: 20000 });
+  await page.getByText('Cliente Demo').first().waitFor({ timeout: 20000 });
   await page.waitForTimeout(600);
   await shot('03-clientes.png');
 
@@ -98,7 +98,7 @@ try {
   await page.getByRole('button', { name: /Monitor 27/ }).first().click();
   await dismissToasts();
   await page.getByRole('button', { name: /Seleccionar cliente/ }).click();
-  await page.getByRole('button', { name: /Cliente Demo 309/ }).click();
+  await page.getByRole('button', { name: /Cliente Demo/ }).click();
   await page.waitForTimeout(400);
   await shot('04-venta.png');
 
@@ -133,7 +133,7 @@ try {
     PASSWORD,
     'stock.quant',
     'search_read',
-    [[['product_id.default_code', '=', 'KB-309'], ['location_id.usage', '=', 'internal']]],
+    [[['product_id.default_code', '=', 'KB-001'], ['location_id.usage', '=', 'internal']]],
     { fields: ['quantity', 'location_id'] },
   ]);
   const [partner] = await rpc('object', 'execute_kw', [
@@ -142,13 +142,13 @@ try {
     PASSWORD,
     'res.partner',
     'search_read',
-    [[['name', '=', 'Cliente Demo 309']]],
+    [[['name', '=', 'Cliente Demo']]],
     { fields: ['name', 'vat', 'email', 'sale_order_count'], limit: 1 },
   ]);
 
   const report = {
     invoice,
-    stockKB309: quants.reduce((total, quant) => total + quant.quantity, 0),
+    stockKB001: quants.reduce((total, quant) => total + quant.quantity, 0),
     partner,
     pdf: pdfPath,
     invoiceName,
@@ -159,7 +159,7 @@ try {
   console.log(JSON.stringify(report, null, 2));
 
   if (!invoice || invoice.state !== 'posted') throw new Error('La factura no quedó publicada en Odoo');
-  if (report.stockKB309 !== 12) throw new Error(`Stock inesperado: ${report.stockKB309}`);
+  if (report.stockKB001 !== 12) throw new Error(`Stock inesperado: ${report.stockKB001}`);
   if (consoleErrors.length > 0) throw new Error(`Errores de consola: ${consoleErrors.join(' | ')}`);
   console.log('E2E REAL OK');
 } catch (error) {

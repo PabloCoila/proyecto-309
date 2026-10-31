@@ -15,7 +15,7 @@ const OUT = resolve('../docs/ui');
 mkdirSync(OUT, { recursive: true });
 
 const products = [
-  { id: 11, name: 'Teclado mecánico Pro 309', default_code: 'KB-309', barcode: false, qty_available: 24, free_qty: 20, virtual_available: 24, uom_id: [1, 'Unidades'], categ_id: [1, 'Periféricos'], list_price: 420, standard_price: 260, detailed_type: 'product', type: 'product' },
+  { id: 11, name: 'Teclado mecánico Neru', default_code: 'KB-001', barcode: false, qty_available: 24, free_qty: 20, virtual_available: 24, uom_id: [1, 'Unidades'], categ_id: [1, 'Periféricos'], list_price: 420, standard_price: 260, detailed_type: 'product', type: 'product' },
   { id: 12, name: 'Monitor 27" 165 Hz', default_code: 'MON-27', barcode: '7891234567890', qty_available: 8, free_qty: 6, virtual_available: 8, uom_id: [1, 'Unidades'], categ_id: [1, 'Periféricos'], list_price: 2150, standard_price: 1500, detailed_type: 'product', type: 'product' },
   { id: 13, name: 'Cable USB-C trenzado 2 m', default_code: 'CAB-2M', barcode: false, qty_available: 120, free_qty: 120, virtual_available: 120, uom_id: [1, 'Unidades'], categ_id: [2, 'Accesorios'], list_price: 85, standard_price: 40, detailed_type: 'product', type: 'product' },
   { id: 14, name: 'Mouse inalámbrico silencioso', default_code: 'MOU-01', barcode: false, qty_available: 0, free_qty: 0, virtual_available: 0, uom_id: [1, 'Unidades'], categ_id: [1, 'Periféricos'], list_price: 190, standard_price: 95, detailed_type: 'product', type: 'product' },
@@ -30,7 +30,7 @@ const locations = [
 ];
 
 const partners = [
-  { id: 1, name: 'Comercial Andina S.R.L.', email: 'compras@andina.example', phone: '+591 712 34567', mobile: false, vat: '1023456789', street: 'Av. 6 de Agosto #309', city: 'La Paz', country_id: [1, 'Bolivia'], customer_rank: 1, sale_order_count: 14, is_company: true },
+  { id: 1, name: 'Comercial Andina S.R.L.', email: 'compras@andina.example', phone: '+591 712 34567', mobile: false, vat: '1023456789', street: 'Av. 6 de Agosto #30', city: 'La Paz', country_id: [1, 'Bolivia'], customer_rank: 1, sale_order_count: 14, is_company: true },
   { id: 2, name: 'Estudio Norte', email: 'hola@estudionorte.example', phone: '+591 700 11122', mobile: false, vat: '9876543', street: 'Calle 21 #45', city: 'Santa Cruz', country_id: [1, 'Bolivia'], customer_rank: 1, sale_order_count: 9, is_company: true },
   { id: 3, name: 'María Fernanda Quispe', email: 'mafer@example.com', phone: '+591 705 44332', mobile: false, vat: '6543210', street: 'Zona Sur, Calle 8', city: 'La Paz', country_id: [1, 'Bolivia'], customer_rank: 1, sale_order_count: 7, is_company: false },
   { id: 4, name: 'Tecnología del Sur', email: 'ventas@tdelsur.example', phone: '+591 733 88990', mobile: false, vat: '5566778', street: 'Av. Monseñor Rivero', city: 'Santa Cruz', country_id: [1, 'Bolivia'], customer_rank: 1, sale_order_count: 5, is_company: true },
@@ -43,8 +43,8 @@ const recent = [
   { id: 89, name: 'INV/2026/00010', state: 'draft', amount_untaxed: 840, amount_tax: 109.2, amount_total: 949.2, invoice_date: '2026-10-23', partner_id: [3, 'María Fernanda Quispe'], currency_id: [1, 'BOB'] },
 ];
 
-const user = { id: 7, name: 'WinterOS', login: 'admin', lang: 'es_ES', company_id: [1, 'Proyecto 309'] };
-const company = { id: 1, name: 'Proyecto 309', currency_id: [1, 'BOB'] };
+const user = { id: 7, name: 'WinterOS', login: 'admin', lang: 'es_ES', company_id: [1, 'Neru'] };
+const company = { id: 1, name: 'Neru', currency_id: [1, 'BOB'] };
 
 let created = null;
 
@@ -63,7 +63,7 @@ function filterByTerms(rows, fields, domain) {
 function invoiceLines(invoiceId) {
   const lines = created?.id === invoiceId ? created.lines : [
     { id: 501, name: 'Monitor 27" 165 Hz', quantity: 1, price_unit: 2150, price_subtotal: 2150 },
-    { id: 502, name: 'Teclado mecánico Pro 309', quantity: 2, price_unit: 420, price_subtotal: 840 },
+    { id: 502, name: 'Teclado mecánico Neru', quantity: 2, price_unit: 420, price_subtotal: 840 },
     { id: 503, name: 'Cable USB-C trenzado 2 m', quantity: 3, price_unit: 85, price_subtotal: 255 },
   ];
   return lines;
@@ -217,20 +217,20 @@ await context.route('**/*jsonrpc*', async (route) => {
 });
 
 await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-await page.waitForTimeout(600);
+await page.waitForTimeout(1500);
 await dismissToasts();
 await page.screenshot({ path: resolve(OUT, '01-login.png') });
 
-await page.getByRole('button', { name: /Entrar a Proyecto 309/ }).click();
+await page.getByRole('button', { name: 'Entrar' }).click();
 await page.waitForURL('**/inventario');
-await page.getByText('Teclado mecánico Pro 309').first().waitFor();
+await page.getByText('Teclado mecánico Neru').first().waitFor();
 await page.waitForTimeout(500);
 await dismissToasts();
 await page.screenshot({ path: resolve(OUT, '02-inventario.png') });
 
 // Restauración de sesión tras recargar (sessionStorage + login silencioso)
 await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('Teclado mecánico Pro 309').first().waitFor();
+await page.getByText('Teclado mecánico Neru').first().waitFor();
 
 await page.getByRole('button', { name: /Ajustar stock de Teclado/ }).click();
 await page.getByRole('heading', { name: 'Ajuste de inventario' }).waitFor();
@@ -255,8 +255,8 @@ await page.waitForTimeout(300);
 
 await page.getByRole('link', { name: /Facturación/ }).click();
 await page.waitForURL('**/ventas');
-await page.getByRole('button', { name: /Teclado mecánico Pro 309/ }).waitFor();
-await page.getByRole('button', { name: /Teclado mecánico Pro 309/ }).click();
+await page.getByRole('button', { name: /Teclado mecánico Neru/ }).waitFor();
+await page.getByRole('button', { name: /Teclado mecánico Neru/ }).click();
 await page.getByRole('button', { name: /Monitor 27/ }).first().click();
 await page.getByRole('button', { name: /Cable USB-C/ }).first().click();
 await page.getByText('Seleccionar cliente').click();
@@ -281,7 +281,7 @@ await download.saveAs(resolve('../docs/factura-ejemplo.pdf'));
 const mobile = await context.newPage();
 await mobile.setViewportSize({ width: 390, height: 844 });
 await mobile.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-await mobile.waitForTimeout(500);
+await mobile.waitForTimeout(1500);
 await mobile.screenshot({ path: resolve(OUT, '06-login-movil.png') });
 
 await browser.close();

@@ -18,7 +18,7 @@ function Splash() {
         <BrandMark size={56} />
       </motion.div>
       <div className="text-center">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-slate-400">Proyecto 309</p>
+        <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-petrol-900">Neru</p>
         <p className="mt-1 text-[11px] text-slate-600">Restaurando sesión con Odoo…</p>
       </div>
     </div>

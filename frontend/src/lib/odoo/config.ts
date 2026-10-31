@@ -15,8 +15,8 @@ function readEnv(): EnvBag {
 const env = readEnv();
 
 export const BRAND = {
-  name: 'Proyecto 309',
-  short: 'P309',
+  name: 'Neru',
+  short: 'NERU',
   tagline: 'Inventario & Punto de Venta',
 } as const;
 
@@ -25,7 +25,7 @@ export const BRAND = {
  * Sobrescribibles por .env — nunca usar en producción.
  */
 export const DEMO_CREDENTIALS = {
-  db: env.VITE_ODOO_DB ?? 'proyecto309',
+  db: env.VITE_ODOO_DB ?? 'neru',
   login: env.VITE_ODOO_LOGIN ?? 'admin',
   password: env.VITE_ODOO_PASSWORD ?? 'admin',
 } as const;

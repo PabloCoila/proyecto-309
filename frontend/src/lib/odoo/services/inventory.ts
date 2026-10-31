@@ -27,6 +27,31 @@ export interface ProductQuery {
   order?: string;
 }
 
+/** Datos para crear un producto nuevo. */
+export interface ProductInput {
+  name: string;
+  default_code?: string;
+  /** Tipo de producto: almacenable, consumible o servicio. */
+  detailed_type?: 'product' | 'consu' | 'service';
+  size?: string;
+  description?: string;
+  list_price: number;
+}
+
+/** Crea un producto nuevo en Odoo (product.template). */
+export async function createProduct(client: OdooClient, input: ProductInput): Promise<number> {
+  return client.create('product.template', {
+    name: input.name.trim(),
+    default_code: input.default_code?.trim() ?? false,
+    detailed_type: input.detailed_type ?? 'product',
+    list_price: input.list_price,
+    sale_ok: true,
+    purchase_ok: true,
+    ...(input.description ? { description: input.description.trim() } : {}),
+    ...(input.size ? { description_sale: input.size.trim() } : {}),
+  });
+}
+
 /** Lista de productos con su existencia a mano. */
 export async function listProducts(client: OdooClient, query: ProductQuery = {}): Promise<Product[]> {
   const { search = '', limit = 80, offset = 0, onlyWithStock = false, order = 'name asc' } = query;

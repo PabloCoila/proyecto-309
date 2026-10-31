@@ -2,7 +2,7 @@
  * Persistencia de sesión en el navegador.
  * sessionStorage: la contraseña muere al cerrar la pestaña (nunca localStorage).
  */
-const KEY = 'p309.odoo.session';
+const KEY = 'neru.odoo.session';
 
 export interface StoredSession {
   db: string;

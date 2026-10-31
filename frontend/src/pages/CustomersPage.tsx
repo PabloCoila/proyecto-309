@@ -88,11 +88,7 @@ export function CustomersPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="label text-gold-400/80">Apartado 2</p>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white">Gestión de clientes</h1>
-          <p className="mt-1 text-[13px] text-slate-400">
-            Cartera de <span className="font-mono text-[12px]">res.partner</span> con ranking de compras por cliente.
-          </p>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-petrol-900">Gestión de clientes</h1>
         </div>
         <Button onClick={() => setNewOpen(true)} icon={<UserPlus className="h-4 w-4" />}>
           Nuevo cliente
@@ -104,20 +100,17 @@ export function CustomersPage() {
           label="Clientes registrados"
           value={loading && rows.length === 0 ? '—' : rows.length}
           icon={<Users className="h-4 w-4" />}
-          hint={tab === 'frequent' ? 'vista de frecuentes' : 'con customer_rank > 0'}
         />
         <Stat
           label="Compras acumuladas"
           value={rows.reduce((total, row) => total + (row.sale_order_count ?? 0), 0)}
           icon={<ReceiptText className="h-4 w-4" />}
-          hint="pedidos de venta asociados"
         />
         <Stat
           label="Compras del cliente top"
           value={frequent[0] ? frequent[0].sale_order_count ?? 0 : '—'}
           icon={<Crown className="h-4 w-4" />}
           accent
-          hint={frequent[0]?.name ?? 'sin ventas registradas'}
         />
       </div>
 
@@ -126,14 +119,14 @@ export function CustomersPage() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Crown className="h-4 w-4 text-gold-400" aria-hidden />
-            <h2 className="text-sm font-semibold text-white">Clientes más frecuentes</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Clientes más frecuentes</h2>
           </div>
           <span className="label hidden sm:inline">por pedidos de venta</span>
         </div>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {frequent.length === 0 ? (
-            <p className="col-span-full rounded-xl border border-dashed border-white/10 px-4 py-5 text-center text-xs text-slate-500">
+            <p className="col-span-full rounded-xl border border-dashed border-slate-200 px-4 py-5 text-center text-xs text-slate-500">
               Aún no hay historial de compras. El ranking se calcula con <span className="font-mono">sale_order_count</span>.
             </p>
           ) : (
@@ -143,7 +136,7 @@ export function CustomersPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="rounded-xl border border-white/[0.07] bg-gradient-to-br from-white/[0.04] to-transparent p-3.5"
+                className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-transparent p-3.5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-500/25 bg-gold-500/10 text-[11px] font-semibold text-gold-300">
@@ -154,12 +147,12 @@ export function CustomersPage() {
                     {partner.sale_order_count ?? 0}
                   </Badge>
                 </div>
-                <p className="mt-2.5 truncate text-[13px] font-medium text-white">{partner.name}</p>
+                <p className="mt-2.5 truncate text-[13px] font-medium text-slate-900">{partner.name}</p>
                 <p className="mt-0.5 truncate text-[11px] text-slate-500">{partner.email || partner.phone || 'Sin contacto'}</p>
                 <button
                   type="button"
                   onClick={() => navigate(`/ventas?cliente=${partner.id}`)}
-                  className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-gold-300 transition hover:text-gold-200"
+                  className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-gold-600 transition hover:text-gold-700"
                 >
                   Facturar
                   <ReceiptText className="h-3 w-3" aria-hidden />
@@ -171,8 +164,8 @@ export function CustomersPage() {
       </section>
 
       <section className="surface overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-4 py-3.5">
-          <div className="inline-flex rounded-lg border border-white/10 bg-ink-950/50 p-0.5">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3.5">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5">
             {(
               [
                 { id: 'all', label: 'Todos', icon: Users },
@@ -184,7 +177,7 @@ export function CustomersPage() {
                 type="button"
                 onClick={() => setTab(option.id)}
                 className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                  tab === option.id ? 'bg-gold-500/15 text-gold-200' : 'text-slate-400 hover:text-slate-200'
+                  tab === option.id ? 'bg-gold-500/15 text-gold-700' : 'text-slate-600 hover:text-slate-800'
                 }`}
               >
                 <option.icon className="h-3.5 w-3.5" aria-hidden />
@@ -248,7 +241,7 @@ export function CustomersPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
+                <tr className="border-b border-slate-200 text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
                   <th className="px-4 py-2.5 font-medium">Cliente</th>
                   <th className="px-4 py-2.5 font-medium">Contacto</th>
                   <th className="px-4 py-2.5 font-medium">NIT / CI</th>
@@ -257,16 +250,16 @@ export function CustomersPage() {
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.05]">
+              <tbody className="divide-y divide-slate-200">
                 {rows.map((partner) => (
                   <tr key={partner.id} className="row-hover">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-slate-300">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-700">
                           {initials(partner.name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="flex items-center gap-1.5 truncate font-medium text-slate-100">
+                          <p className="flex items-center gap-1.5 truncate font-medium text-slate-900">
                             {partner.name}
                             {partner.is_company ? <Building2 className="h-3 w-3 text-slate-500" aria-hidden /> : null}
                           </p>
@@ -277,7 +270,7 @@ export function CustomersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="space-y-0.5 text-[11.5px] text-slate-400">
+                      <div className="space-y-0.5 text-[11.5px] text-slate-600">
                         {partner.email ? (
                           <p className="flex items-center gap-1.5 truncate">
                             <Mail className="h-3 w-3 text-slate-600" aria-hidden />
@@ -293,9 +286,9 @@ export function CustomersPage() {
                         {!partner.email && !partner.phone ? <span className="text-slate-600">—</span> : null}
                       </div>
                     </td>
-                    <td className="px-4 py-3 font-mono text-[11.5px] text-slate-400">{displayCode(partner.vat)}</td>
+                    <td className="px-4 py-3 font-mono text-[11.5px] text-slate-600">{displayCode(partner.vat)}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-[11.5px] text-slate-400">
+                      <span className="inline-flex items-center gap-1.5 text-[11.5px] text-slate-600">
                         <MapPin className="h-3 w-3 text-slate-600" aria-hidden />
                         {partner.city || '—'}
                       </span>
@@ -322,7 +315,7 @@ export function CustomersPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t border-white/[0.06] px-4 py-2.5 text-[11px] text-slate-500">
+        <div className="flex items-center justify-between border-t border-slate-200 px-4 py-2.5 text-[11px] text-slate-500">
           <span>{rows.length} cliente(s)</span>
           <span className="hidden sm:inline">res.partner · customer_rank &gt; 0</span>
         </div>

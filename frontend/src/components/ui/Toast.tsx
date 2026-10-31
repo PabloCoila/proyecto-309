@@ -25,12 +25,12 @@ const STYLES: Record<ToastKind, { ring: string; icon: ReactNode; bar: string }> 
   success: {
     ring: 'border-emerald-500/25',
     bar: 'bg-emerald-400',
-    icon: <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden />,
+    icon: <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden />,
   },
   error: {
     ring: 'border-rose-500/30',
     bar: 'bg-rose-400',
-    icon: <AlertTriangle className="h-4 w-4 text-rose-300" aria-hidden />,
+    icon: <AlertTriangle className="h-4 w-4 text-rose-600" aria-hidden />,
   },
   info: {
     ring: 'border-gold-500/25',
@@ -89,7 +89,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 exit={{ opacity: 0, x: 24, transition: { duration: 0.18 } }}
                 transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                 className={clsx(
-                  'pointer-events-auto relative overflow-hidden rounded-xl border bg-ink-800/95 p-3.5 shadow-panel backdrop-blur',
+                  'pointer-events-auto relative overflow-hidden rounded-xl border bg-white/95 p-3.5 shadow-panel backdrop-blur',
                   style.ring,
                 )}
               >
@@ -97,13 +97,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <div className="flex items-start gap-2.5 pl-1">
                   <span className="mt-0.5">{style.icon}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-white">{item.title}</p>
-                    {item.message ? <p className="mt-0.5 text-xs leading-relaxed text-slate-400">{item.message}</p> : null}
+                    <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                    {item.message ? <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{item.message}</p> : null}
                   </div>
                   <button
                     type="button"
                     onClick={() => dismiss(item.id)}
-                    className="rounded p-1 text-slate-500 transition hover:bg-white/5 hover:text-white"
+                    className="rounded p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
                     aria-label="Descartar"
                   >
                     <X className="h-3.5 w-3.5" />

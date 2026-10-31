@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BadgeCheck,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -235,27 +234,13 @@ export function SalesPage() {
     }
   };
 
-  const previewPdf = async () => {
-    const { downloadInvoicePdf, sampleInvoiceData } = await import('@/lib/pdf');
-    downloadInvoicePdf(sampleInvoiceData(safeCurrency(currency)));
-    toast.info('PDF de ejemplo', 'Comprobante de demostración generado con la marca Proyecto 309.');
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="label text-gold-400/80">Apartado 3</p>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white">Facturación y punto de venta</h1>
-          <p className="mt-1 text-[13px] text-slate-400">
-            Venta rápida contra <span className="font-mono text-[12px]">account.move</span> con comprobante PDF
-            generado en el navegador.
-          </p>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-petrol-900">Facturación y punto de venta</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => void previewPdf()} icon={<FileText className="h-3.5 w-3.5" />}>
-            Ver PDF de ejemplo
-          </Button>
           <Button variant="secondary" onClick={resetOrder} icon={<RefreshCw className="h-4 w-4" />}>
             Nueva venta
           </Button>
@@ -265,7 +250,7 @@ export function SalesPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
         {/* Catálogo */}
         <section className="surface flex min-h-[520px] flex-col overflow-hidden">
-          <div className="flex flex-wrap items-center gap-3 border-b border-white/[0.06] px-4 py-3.5">
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3.5">
             <div className="min-w-[200px] flex-1">
               <Input
                 value={productSearch}
@@ -282,7 +267,7 @@ export function SalesPage() {
           {loadingProducts ? (
             <div className="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="h-[104px] animate-pulse rounded-xl border border-white/[0.05] bg-white/[0.02]" />
+                <div key={index} className="h-[104px] animate-pulse rounded-xl border border-slate-200 bg-slate-50" />
               ))}
             </div>
           ) : productError ? (
@@ -313,11 +298,11 @@ export function SalesPage() {
                     type="button"
                     onClick={() => addProduct(product)}
                     whileTap={{ scale: 0.985 }}
-                    className="group relative flex h-full flex-col justify-between rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5 text-left transition hover:border-gold-500/35 hover:bg-gold-500/[0.05]"
+                    className="group relative flex h-full flex-col justify-between rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-left transition hover:border-gold-500/35 hover:bg-gold-500/[0.05]"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-100">{product.name}</p>
+                        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-900">{product.name}</p>
                         {inCart ? (
                           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-bold text-ink-950">
                             {inCart.quantity}
@@ -335,7 +320,7 @@ export function SalesPage() {
                       {isService ? (
                         <Badge tone="neutral">Servicio</Badge>
                       ) : (
-                        <span className={`text-[10.5px] ${product.qty_available > 0 ? 'text-slate-500' : 'text-rose-400'}`}>
+                        <span className={`text-[10.5px] ${product.qty_available > 0 ? 'text-slate-500' : 'text-rose-600'}`}>
                           {formatQty(product.qty_available)} en stock
                         </span>
                       )}
@@ -350,10 +335,10 @@ export function SalesPage() {
         {/* Carrito */}
         <aside className="xl:sticky xl:top-[84px] xl:self-start">
           <div className="surface overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3.5">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-gold-300" aria-hidden />
-                <h2 className="text-sm font-semibold text-white">Orden actual</h2>
+                <h2 className="text-sm font-semibold text-slate-900">Orden actual</h2>
               </div>
               <div className="flex items-center gap-2">
                 <Badge tone={itemCount > 0 ? 'gold' : 'neutral'}>{itemCount} ítem(s)</Badge>
@@ -361,7 +346,7 @@ export function SalesPage() {
                   <button
                     type="button"
                     onClick={resetOrder}
-                    className="rounded-md p-1 text-slate-500 transition hover:bg-white/5 hover:text-rose-300"
+                    className="rounded-md p-1 text-slate-500 transition hover:bg-slate-100 hover:text-rose-600"
                     aria-label="Vaciar orden"
                     title="Vaciar orden"
                   >
@@ -387,24 +372,24 @@ export function SalesPage() {
                       transition={{ type: 'spring', stiffness: 320, damping: 20 }}
                       className="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10"
                     >
-                      <CheckCircle2 className="h-6 w-6 text-emerald-400" aria-hidden />
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden />
                     </motion.span>
-                    <p className="mt-3 text-sm font-semibold text-white">Factura emitida</p>
-                    <p className="mt-0.5 font-mono text-[11.5px] text-slate-400">
+                    <p className="mt-3 text-sm font-semibold text-slate-900">Factura emitida</p>
+                    <p className="mt-0.5 font-mono text-[11.5px] text-slate-600">
                       {result.invoice.name || `#${result.invoice.id}`}
                     </p>
                   </div>
 
-                  <dl className="mt-5 space-y-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5 text-[12.5px]">
-                    <div className="flex justify-between text-slate-400">
+                  <dl className="mt-5 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-[12.5px]">
+                    <div className="flex justify-between text-slate-600">
                       <dt>Subtotal</dt>
                       <dd>{formatMoney(result.invoice.amount_untaxed, pdfCurrency(result.invoice, currency))}</dd>
                     </div>
-                    <div className="flex justify-between text-slate-400">
+                    <div className="flex justify-between text-slate-600">
                       <dt>Impuestos</dt>
                       <dd>{formatMoney(result.invoice.amount_tax, pdfCurrency(result.invoice, currency))}</dd>
                     </div>
-                    <div className="flex justify-between border-t border-white/[0.08] pt-2 text-sm font-semibold text-white">
+                    <div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-semibold text-slate-900">
                       <dt>Total</dt>
                       <dd className="text-gold-300">
                         {formatMoney(result.invoice.amount_total, pdfCurrency(result.invoice, currency))}
@@ -426,14 +411,14 @@ export function SalesPage() {
                   <button
                     type="button"
                     onClick={() => setPickerOpen(true)}
-                    className="flex w-full items-center gap-3 border-b border-white/[0.06] px-4 py-3 text-left transition hover:bg-white/[0.03]"
+                    className="flex w-full items-center gap-3 border-b border-slate-200 px-4 py-3 text-left transition hover:bg-slate-100"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-slate-300">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-700">
                       {selectedPartner ? initials(selectedPartner.name) : <UserRound className="h-4 w-4" />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[10px] uppercase tracking-wider text-slate-500">Cliente</span>
-                      <span className="block truncate text-[13px] font-medium text-slate-100">
+                      <span className="block truncate text-[13px] font-medium text-slate-900">
                         {selectedPartner?.name ?? 'Seleccionar cliente'}
                       </span>
                     </span>
@@ -449,12 +434,12 @@ export function SalesPage() {
                         </p>
                       </div>
                     ) : (
-                      <ul className="divide-y divide-white/[0.05]">
+                      <ul className="divide-y divide-slate-200">
                         {lines.map((line) => (
                           <li key={line.product.id} className="px-4 py-2.5">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-[12.5px] font-medium text-slate-100">{line.product.name}</p>
+                                <p className="truncate text-[12.5px] font-medium text-slate-900">{line.product.name}</p>
                                 <p className="font-mono text-[10px] text-slate-500">
                                   {formatMoney(line.product.list_price, currency)} · {displayCode(line.product.default_code)}
                                 </p>
@@ -462,33 +447,33 @@ export function SalesPage() {
                               <button
                                 type="button"
                                 onClick={() => removeLine(line.product.id)}
-                                className="rounded p-1 text-slate-600 transition hover:bg-white/5 hover:text-rose-300"
+                                className="rounded p-1 text-slate-600 transition hover:bg-slate-100 hover:text-rose-600"
                                 aria-label={`Quitar ${line.product.name}`}
                               >
                                 <X className="h-3.5 w-3.5" />
                               </button>
                             </div>
                             <div className="mt-2 flex items-center justify-between">
-                              <div className="inline-flex items-center rounded-lg border border-white/10 bg-ink-950/60">
+                              <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white">
                                 <button
                                   type="button"
                                   onClick={() => updateQuantity(line.product.id, line.quantity - 1)}
-                                  className="px-2 py-1 text-slate-400 transition hover:text-white"
+                                  className="px-2 py-1 text-slate-600 transition hover:text-slate-900"
                                   aria-label="Disminuir"
                                 >
                                   <Minus className="h-3 w-3" />
                                 </button>
-                                <span className="min-w-7 text-center text-xs font-medium text-white">{line.quantity}</span>
+                                <span className="min-w-7 text-center text-xs font-medium text-slate-900">{line.quantity}</span>
                                 <button
                                   type="button"
                                   onClick={() => updateQuantity(line.product.id, line.quantity + 1)}
-                                  className="px-2 py-1 text-slate-400 transition hover:text-white"
+                                  className="px-2 py-1 text-slate-600 transition hover:text-slate-900"
                                   aria-label="Aumentar"
                                 >
                                   <Plus className="h-3 w-3" />
                                 </button>
                               </div>
-                              <p className="text-[12.5px] font-semibold text-slate-200">
+                              <p className="text-[12.5px] font-semibold text-slate-800">
                                 {formatMoney(line.product.list_price * line.quantity, currency)}
                               </p>
                             </div>
@@ -498,21 +483,21 @@ export function SalesPage() {
                     )}
                   </div>
 
-                  <div className="border-t border-white/[0.06] px-4 py-3.5">
+                  <div className="border-t border-slate-200 px-4 py-3.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">Subtotal</span>
-                      <span className="text-base font-semibold text-white">{formatMoney(subtotal, currency)}</span>
+                      <span className="text-xs text-slate-600">Subtotal</span>
+                      <span className="text-base font-semibold text-slate-900">{formatMoney(subtotal, currency)}</span>
                     </div>
                     <p className="mt-1 text-[10.5px] leading-relaxed text-slate-500">
-                      Sin impuestos. Odoo calcula impuestos y total definitivo al emitir.
+                      
                     </p>
 
-                    <label className="mt-3 flex cursor-pointer items-center gap-2 text-[11px] text-slate-400">
+                    <label className="mt-3 flex cursor-pointer items-center gap-2 text-[11px] text-slate-600">
                       <input
                         type="checkbox"
                         checked={autoDownload}
                         onChange={(event) => setAutoDownload(event.target.checked)}
-                        className="h-3.5 w-3.5 rounded border-white/20 bg-ink-950 accent-gold-500"
+                        className="h-3.5 w-3.5 rounded border-slate-300 bg-white accent-gold-500"
                       />
                       Descargar el PDF automáticamente
                     </label>
@@ -534,22 +519,15 @@ export function SalesPage() {
             </AnimatePresence>
           </div>
 
-          <div className="mt-3 flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3">
-            <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-gold-400" aria-hidden />
-            <p className="text-[10.5px] leading-relaxed text-slate-500">
-              La factura se crea y publica en Odoo (<span className="font-mono">account.move</span>). El PDF se
-              genera en el navegador con los totales devueltos por el servidor.
-            </p>
-          </div>
         </aside>
       </div>
 
       {/* Historial reciente */}
       <section className="surface overflow-hidden">
-        <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3.5">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-gold-300" aria-hidden />
-            <h2 className="text-sm font-semibold text-white">Facturas recientes</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Facturas recientes</h2>
           </div>
           <Button
             variant="ghost"
@@ -568,13 +546,13 @@ export function SalesPage() {
           <EmptyState
             icon={<ReceiptText className="h-6 w-6" />}
             title="Sin facturas todavía"
-            description="Las facturas emitidas desde Proyecto 309 aparecerán aquí con su comprobante PDF."
+            description="Las facturas emitidas desde Neru aparecerán aquí con su comprobante PDF."
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
+                <tr className="border-b border-slate-200 text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
                   <th className="px-4 py-2.5 font-medium">Comprobante</th>
                   <th className="px-4 py-2.5 font-medium">Cliente</th>
                   <th className="px-4 py-2.5 font-medium">Fecha</th>
@@ -583,21 +561,21 @@ export function SalesPage() {
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.05]">
+              <tbody className="divide-y divide-slate-200">
                 {recent.map((invoice) => (
                   <tr key={invoice.id} className="row-hover">
                     <td className="px-4 py-3">
-                      <span className="font-mono text-[12px] text-slate-200">
+                      <span className="font-mono text-[12px] text-slate-800">
                         {invoice.name || `#${invoice.id}`}
                       </span>
                     </td>
-                    <td className="max-w-[220px] truncate px-4 py-3 text-slate-300">
+                    <td className="max-w-[220px] truncate px-4 py-3 text-slate-700">
                       {Array.isArray(invoice.partner_id) ? invoice.partner_id[1] : '—'}
                     </td>
-                    <td className="px-4 py-3 text-[12px] text-slate-400">
+                    <td className="px-4 py-3 text-[12px] text-slate-600">
                       {formatDate(invoice.invoice_date)}
                     </td>
-                    <td className="px-4 py-3 text-right text-[12.5px] font-medium text-slate-200">
+                    <td className="px-4 py-3 text-right text-[12.5px] font-medium text-slate-800">
                       {formatMoney(invoice.amount_total, pdfCurrency(invoice, currency))}
                     </td>
                     <td className="px-4 py-3">
@@ -734,7 +712,7 @@ function ClientPickerModal({
   }, [open]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Seleccionar cliente" description="Búsqueda en res.partner">
+    <Modal open={open} onClose={onClose} title="Seleccionar cliente">
       <div className="space-y-3">
         <Input
           value={query}
@@ -744,7 +722,7 @@ function ClientPickerModal({
           autoFocus
         />
 
-        <div className="max-h-[340px] overflow-y-auto rounded-xl border border-white/[0.07]">
+        <div className="max-h-[340px] overflow-y-auto rounded-xl border border-slate-200">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
               <Spinner /> Buscando clientes…
@@ -754,19 +732,19 @@ function ClientPickerModal({
               Sin coincidencias. Crea el cliente desde el apartado de Clientes.
             </p>
           ) : (
-            <ul className="divide-y divide-white/[0.05]">
+            <ul className="divide-y divide-slate-200">
               {results.map((partner) => (
                 <li key={partner.id}>
                   <button
                     type="button"
                     onClick={() => onSelect(partner)}
-                    className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-white/[0.04]"
+                    className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-slate-100"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[10.5px] font-semibold text-slate-300">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10.5px] font-semibold text-slate-700">
                       {initials(partner.name)}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-medium text-slate-100">{partner.name}</span>
+                      <span className="block truncate text-[12.5px] font-medium text-slate-900">{partner.name}</span>
                       <span className="block truncate text-[10.5px] text-slate-500">
                         {partner.vat ? `NIT ${partner.vat} · ` : ''}
                         {partner.email || partner.phone || 'Sin datos de contacto'}

@@ -14,7 +14,7 @@ import type { Domain, OdooRecord, OdooVersion, SearchReadOptions } from './types
 export interface OdooClientConfig {
   /** Prefijo de la API, p. ej. "/odoo" (proxy) o "http://localhost:8069". */
   baseUrl: string;
-  /** Nombre de la base de datos, p. ej. "proyecto309". */
+  /** Nombre de la base de datos, p. ej. "neru". */
   db: string;
   /** Timeout por petición en ms. */
   timeoutMs?: number;

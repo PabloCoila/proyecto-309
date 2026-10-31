@@ -1,13 +1,13 @@
 {
-  "name": "proyecto-309-frontend",
+  "name": "neru-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit",
     "test:ui": "node scripts/ui-smoke.mjs",
     "pdf:sample": "esbuild scripts/pdf-smoke.ts --bundle --platform=node --format=esm --outfile=.tmp/pdf-smoke.mjs && node .tmp/pdf-smoke.mjs",
     "pdf:preview": "node scripts/pdf-screenshot.mjs"

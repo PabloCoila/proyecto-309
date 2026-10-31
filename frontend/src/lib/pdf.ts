@@ -1,5 +1,5 @@
 /**
- * Factura PDF de "Proyecto 309" generada 100% en el cliente (jsPDF).
+ * Factura PDF de "Neru" generada 100% en el cliente (jsPDF).
  * Diseño: cabecera oscura con marca, bloque de cliente, tabla de ítems,
  * totales calculados por Odoo y pie con paginación.
  */
@@ -37,11 +37,11 @@ export interface PdfInvoiceData {
 const PAGE_W = 210;
 const PAGE_H = 297;
 const MARGIN = 16;
-const INK: [number, number, number] = [12, 17, 24];
-const GOLD: [number, number, number] = [216, 180, 95];
-const GOLD_SOFT: [number, number, number] = [240, 220, 172];
-const MUTED: [number, number, number] = [104, 113, 128];
-const LINE: [number, number, number] = [231, 235, 241];
+const INK: [number, number, number] = [11, 31, 51]; // azul petróleo
+const TEAL: [number, number, number] = [15, 118, 110]; // teal de marca
+const TEAL_SOFT: [number, number, number] = [153, 246, 228];
+const MUTED: [number, number, number] = [100, 116, 139];
+const LINE: [number, number, number] = [226, 232, 240];
 
 /** Intl usa espacios especiales; la fuente WinAnsi de jsPDF solo entiende ASCII. */
 function pdfText(value: string): string {
@@ -56,25 +56,25 @@ function drawBrandHeader(doc: jsPDF, data: PdfInvoiceData): void {
   doc.setFillColor(...INK);
   doc.rect(0, 0, PAGE_W, 44, 'F');
 
-  // Marca: tile dorado con "309"
-  doc.setFillColor(...GOLD);
+  // Marca: tile teal con "N"
+  doc.setFillColor(...TEAL);
   doc.roundedRect(MARGIN, 12.5, 17, 17, 4.5, 4.5, 'F');
-  doc.setTextColor(...INK);
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('309', MARGIN + 8.5, 22.4, { align: 'center' });
+  doc.setFontSize(14);
+  doc.text('N', MARGIN + 8.5, 23.2, { align: 'center' });
 
   // Wordmark
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14.5);
   doc.setCharSpace(0.5);
-  doc.text('PROYECTO 309', MARGIN + 21.5, 21);
+  doc.text('NERU', MARGIN + 21.5, 21);
   doc.setCharSpace(0);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.4);
-  doc.setTextColor(...GOLD_SOFT);
+  doc.setTextColor(...TEAL_SOFT);
   doc.setCharSpace(1.1);
   doc.text('INVENTARIO & PUNTO DE VENTA', MARGIN + 21.5, 26.4);
   doc.setCharSpace(0);
@@ -82,7 +82,7 @@ function drawBrandHeader(doc: jsPDF, data: PdfInvoiceData): void {
   // Bloque derecho: comprobante
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.4);
-  doc.setTextColor(...GOLD);
+  doc.setTextColor(...TEAL_SOFT);
   doc.setCharSpace(2.2);
   doc.text('FACTURA', PAGE_W - MARGIN, 17, { align: 'right' });
   doc.setCharSpace(0);
@@ -96,24 +96,24 @@ function drawBrandHeader(doc: jsPDF, data: PdfInvoiceData): void {
   doc.setTextColor(168, 177, 192);
   doc.text(pdfText(`${formatDate(data.date)}  ·  ${data.currency}`), PAGE_W - MARGIN, 30.4, { align: 'right' });
 
-  // Línea dorada inferior
-  doc.setFillColor(...GOLD);
+  // Línea teal inferior
+  doc.setFillColor(...TEAL);
   doc.rect(0, 43.4, PAGE_W, 0.6, 'F');
 }
 
 function drawContinuationHeader(doc: jsPDF, data: PdfInvoiceData): void {
   doc.setFillColor(...INK);
   doc.rect(0, 0, PAGE_W, 18, 'F');
-  doc.setFillColor(...GOLD);
+  doc.setFillColor(...TEAL);
   doc.roundedRect(MARGIN, 4.5, 9, 9, 2.4, 2.4, 'F');
-  doc.setTextColor(...INK);
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6);
-  doc.text('309', MARGIN + 4.5, 10.4, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text('N', MARGIN + 4.5, 10.6, { align: 'center' });
 
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(9);
-  doc.text('PROYECTO 309', MARGIN + 12, 9.6);
+  doc.text('NERU', MARGIN + 12, 9.6);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.4);
   doc.setTextColor(168, 177, 192);
@@ -125,7 +125,7 @@ function drawCustomerAndMeta(doc: jsPDF, data: PdfInvoiceData): number {
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.2);
-  doc.setTextColor(...GOLD);
+  doc.setTextColor(...TEAL);
   doc.setCharSpace(1.4);
   doc.text('FACTURAR A', MARGIN, y);
   doc.setCharSpace(0);
@@ -212,7 +212,7 @@ function drawTotals(doc: jsPDF, data: PdfInvoiceData, startY: number): number {
   doc.roundedRect(boxX, y - 3.6, boxW, bandH, 2.4, 2.4, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.2);
-  doc.setTextColor(...GOLD);
+  doc.setTextColor(...TEAL_SOFT);
   doc.setCharSpace(1.2);
   doc.text('TOTAL', boxX + 5, y + 4.2);
   doc.setCharSpace(0);
@@ -230,7 +230,7 @@ function drawNotes(doc: jsPDF, note: string, top: number, maxY: number): number 
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.8);
-  doc.setTextColor(...GOLD);
+  doc.setTextColor(...TEAL);
   doc.setCharSpace(1.2);
   doc.text('NOTAS', MARGIN, top);
   doc.setCharSpace(0);
@@ -274,9 +274,9 @@ function drawFooters(doc: jsPDF): void {
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.8);
-    doc.setTextColor(...GOLD);
+    doc.setTextColor(...TEAL);
     doc.setCharSpace(0.8);
-    doc.text('PROYECTO 309', MARGIN, PAGE_H - 16.5);
+    doc.text('NERU', MARGIN, PAGE_H - 16.5);
     doc.setCharSpace(0);
 
     doc.setFont('helvetica', 'normal');
@@ -321,7 +321,7 @@ export function buildInvoicePdf(data: PdfInvoiceData): jsPDF {
     },
     headStyles: {
       fillColor: INK,
-      textColor: GOLD_SOFT,
+      textColor: TEAL_SOFT,
       fontSize: 7.2,
       fontStyle: 'bold',
       cellPadding: { top: 3.6, bottom: 3.6, left: 3, right: 3 },
@@ -361,7 +361,7 @@ export function buildInvoicePdf(data: PdfInvoiceData): jsPDF {
 
 export function invoicePdfFileName(number: string): string {
   const clean = (number || 'borrador').replace(/[^\w-]+/g, '-');
-  return `Proyecto309-Factura-${clean}.pdf`;
+  return `Neru-Factura-${clean}.pdf`;
 }
 
 /** Genera y descarga el comprobante; devuelve el nombre del archivo. */
@@ -376,7 +376,7 @@ export function downloadInvoicePdf(data: PdfInvoiceData): string {
 export function sampleInvoiceData(currency = 'BOB'): PdfInvoiceData {
   const date = new Date().toISOString().slice(0, 10);
   return {
-    number: 'INV/2026/0309',
+    number: 'INV/2026/0001',
     date,
     stateLabel: 'EMITIDA',
     customer: {
@@ -384,10 +384,10 @@ export function sampleInvoiceData(currency = 'BOB'): PdfInvoiceData {
       vat: '1023456789',
       email: 'compras@andina.example',
       phone: '+591 712 34567',
-      address: 'Av. 6 de Agosto #309, La Paz',
+      address: 'Av. 6 de Agosto #30, La Paz',
     },
     lines: [
-      { name: 'Teclado mecánico Pro 309', quantity: 2, unitPrice: 420, subtotal: 840 },
+      { name: 'Teclado mecánico Pro', quantity: 2, unitPrice: 420, subtotal: 840 },
       { name: 'Monitor 27" 165 Hz', quantity: 1, unitPrice: 2150, subtotal: 2150 },
       { name: 'Cable USB-C trenzado 2 m', quantity: 3, unitPrice: 85, subtotal: 255 },
     ],
@@ -395,6 +395,6 @@ export function sampleInvoiceData(currency = 'BOB'): PdfInvoiceData {
     tax: 422.85,
     total: 3667.85,
     currency,
-    note: 'Gracias por su compra. Documento de demostración generado por Proyecto 309.',
+    note: 'Gracias por su compra. Documento de demostración generado por Neru.',
   };
 }

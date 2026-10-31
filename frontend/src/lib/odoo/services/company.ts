@@ -23,12 +23,12 @@ export async function getCompanyInfo(client: OdooClient, companyId?: number | nu
     id = first?.id ?? null;
   }
 
-  if (!id) return { id: 0, name: 'Proyecto 309', currency: 'USD' };
+  if (!id) return { id: 0, name: 'Neru', currency: 'USD' };
 
   const [company] = await client.read<CompanyRow>('res.company', [id], ['name', 'currency_id']);
   return {
     id,
-    name: company?.name ?? 'Proyecto 309',
+    name: company?.name ?? 'Neru',
     currency: safeCurrency(Array.isArray(company?.currency_id) ? company.currency_id[1] : null),
   };
 }

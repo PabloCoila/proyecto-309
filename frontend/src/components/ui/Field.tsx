@@ -22,7 +22,7 @@ function FieldShell({ label, error, hint, htmlFor, children, className }: FieldS
       ) : null}
       {children}
       {error ? (
-        <p className="flex items-center gap-1.5 text-xs text-rose-300">
+        <p className="flex items-center gap-1.5 text-xs text-rose-600">
           <AlertCircle className="h-3.5 w-3.5" aria-hidden />
           {error}
         </p>
