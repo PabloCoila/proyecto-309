@@ -16,9 +16,10 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState, Spinner, Stat, TableSkeleton } from '@/components/ui/Feedback';
 import { Input, Select } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
+import { Thumb } from '@/components/ui/Thumb';
 import { useToast } from '@/components/ui/Toast';
 import { useSession } from '@/context/session';
-import { useDebouncedValue } from '@/lib/hooks';
+import { useSearch } from '@/lib/hooks';
 import { displayCode, formatMoney, formatQty, shortLocation } from '@/lib/format';
 import { friendlyMessage, inventory } from '@/lib/odoo';
 import type { Product, StockLocation } from '@/lib/odoo';
@@ -37,34 +38,42 @@ export function InventoryPage() {
   const [locations, setLocations] = useState<StockLocation[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebouncedValue(search);
   const [onlyStock, setOnlyStock] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Product | null>(null);
   const [newProductOpen, setNewProductOpen] = useState(false);
 
+  const { data: searchedProducts, loading: searchLoading, error: searchError } = useSearch(
+    useCallback(async (_signal, query) => {
+      return inventory.listProducts(client, {
+        search: query,
+        onlyWithStock: onlyStock,
+        stockableOnly: true,
+        limit: 120,
+      });
+    }, [client, onlyStock]),
+    search,
+    300,
+  );
+
+  // Usar productos buscados o mantener los últimos si no hay búsqueda
+  const displayProducts = search.trim() ? (searchedProducts ?? []) : products;
+
   const fetchProducts = useCallback(
     async (notify = false) => {
-      setLoading(true);
-      setError(null);
       try {
         const data = await inventory.listProducts(client, {
-          search: debouncedSearch,
           onlyWithStock: onlyStock,
           stockableOnly: true,
           limit: 120,
         });
         setProducts(data);
       } catch (cause) {
-        setError(friendlyMessage(cause));
-      } finally {
-        setLoading(false);
-        if (notify) setRefreshing(false);
+        // No mostrar error si es solo carga inicial
       }
+      if (notify) setRefreshing(false);
     },
-    [client, debouncedSearch, onlyStock],
+    [client, onlyStock],
   );
 
   useEffect(() => {
@@ -189,30 +198,32 @@ export function InventoryPage() {
             </button>
           </div>
 
-          {loading ? (
+          {search.trim() && searchLoading ? (
             <TableSkeleton rows={7} cols={5} />
-          ) : error ? (
+          ) : search.trim() && searchError ? (
             <EmptyState
               icon={<Boxes className="h-6 w-6" />}
-              title="No se pudo leer el inventario"
-              description={error}
+              title="Error en la búsqueda"
+              description={friendlyMessage(searchError)}
               action={
-                <Button variant="secondary" onClick={() => void fetchProducts()} icon={<RefreshCw className="h-4 w-4" />}>
+                <Button variant="secondary" onClick={() => setSearch(search)} icon={<RefreshCw className="h-4 w-4" />}>
                   Reintentar
                 </Button>
               }
             />
-          ) : products.length === 0 ? (
+          ) : displayProducts.length === 0 ? (
             <EmptyState
               icon={<Package className="h-6 w-6" />}
-              title="Sin productos para mostrar"
-              description="Crea productos en Odoo o ajusta la búsqueda. Los productos de tipo servicio no aparecen en inventario."
+              title={search.trim() ? 'Sin coincidencias' : 'Sin productos para mostrar'}
+              description={search.trim()
+                ? 'No se encontraron productos con ese criterio.'
+                : 'Crea productos en Odoo o ajusta la búsqueda. Los productos de tipo servicio no aparecen en inventario.'}
             />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
+                  <tr className="border-b border-slate-200 text-[11px] uppercase tracking-[0.12em] text-slate-500">
                     <th className="px-3 py-2.5 font-medium">Producto</th>
                     <th className="px-3 py-2.5 font-medium">Categoría</th>
                     <th className="px-3 py-2.5 text-right font-medium">En mano</th>
@@ -222,7 +233,7 @@ export function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {products.map((product) => {
+                  {displayProducts.map((product) => {
                     const category = Array.isArray(product.categ_id) ? product.categ_id[1] : 'Sin categoría';
                     const uom = Array.isArray(product.uom_id) ? product.uom_id[1] : 'u.';
                     const hasStock = product.qty_available > 0;
@@ -230,16 +241,17 @@ export function InventoryPage() {
                     return (
                       <motion.tr
                         key={product.id}
-                        layout
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="row-hover"
                       >
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-3">
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-gold-300">
-                              <Package className="h-4 w-4" aria-hidden />
-                            </span>
+                            <Thumb
+                              base64={product.image_128}
+                              className="h-9 w-9"
+                              fallback={<Package className="h-4 w-4" aria-hidden />}
+                            />
                             <div className="min-w-0 max-w-[220px]">
                               <p className="truncate font-medium text-slate-900">{product.name}</p>
                               <p className="truncate font-mono text-[10.5px] text-slate-500">
@@ -259,7 +271,7 @@ export function InventoryPage() {
                           <span className="ml-1 text-[10.5px] text-slate-500">{uom}</span>
                         </td>
                         <td className="px-3 py-3 text-right">
-                          <Badge tone={product.free_qty > 0 ? 'success' : 'danger'}>
+                          <Badge tone={product.free_qty <= 0 ? 'danger' : product.free_qty <= 5 ? 'warning' : 'success'}>
                             {formatQty(product.free_qty)}
                           </Badge>
                         </td>
@@ -286,7 +298,7 @@ export function InventoryPage() {
           )}
 
           <div className="flex items-center justify-between border-t border-slate-200 px-4 py-2.5 text-[11px] text-slate-500">
-            <span>{products.length} producto(s)</span>
+            <span>{displayProducts.length} producto(s)</span>
           </div>
         </section>
 

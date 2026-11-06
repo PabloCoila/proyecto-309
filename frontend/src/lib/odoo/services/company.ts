@@ -7,12 +7,20 @@ export interface CompanyInfo {
   id: number;
   name: string;
   currency: string;
+  vat: string | false;
+  street: string | false;
+  city: string | false;
+  phone: string | false;
 }
 
 interface CompanyRow {
   id: number;
   name: string;
   currency_id: Many2One;
+  vat: string | false;
+  street: string | false;
+  city: string | false;
+  phone: string | false;
 }
 
 export async function getCompanyInfo(client: OdooClient, companyId?: number | null): Promise<CompanyInfo> {
@@ -23,12 +31,19 @@ export async function getCompanyInfo(client: OdooClient, companyId?: number | nu
     id = first?.id ?? null;
   }
 
-  if (!id) return { id: 0, name: 'Neru', currency: 'USD' };
+  if (!id) {
+    return { id: 0, name: 'Neru', currency: 'USD', vat: false, street: false, city: false, phone: false };
+  }
 
-  const [company] = await client.read<CompanyRow>('res.company', [id], ['name', 'currency_id']);
+  const fields = ['name', 'currency_id', 'vat', 'street', 'city', 'phone'];
+  const [company] = await client.read<CompanyRow>('res.company', [id], fields);
   return {
     id,
     name: company?.name ?? 'Neru',
     currency: safeCurrency(Array.isArray(company?.currency_id) ? company.currency_id[1] : null),
+    vat: company?.vat ?? false,
+    street: company?.street ?? false,
+    city: company?.city ?? false,
+    phone: company?.phone ?? false,
   };
 }

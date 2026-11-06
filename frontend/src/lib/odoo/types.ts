@@ -60,6 +60,7 @@ export interface Product {
   standard_price: number;
   type: string;
   detailed_type?: string;
+  image_128?: string | false;
 }
 
 export interface StockLocation {
@@ -95,6 +96,7 @@ export interface Partner {
   /** Facturas publicadas, calculado por el servicio de clientes. */
   invoice_count?: number;
   is_company: boolean;
+  image_128?: string | false;
 }
 
 export interface PartnerInput {
@@ -134,6 +136,7 @@ export interface Invoice extends OdooRecord {
   invoice_date: string | false;
   partner_id: Many2One;
   currency_id: Many2One;
+  payment_state?: 'not_paid' | 'in_payment' | 'paid' | 'partial' | 'reversed' | string;
 }
 
 export interface SaleOrder extends OdooRecord {

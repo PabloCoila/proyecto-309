@@ -20,9 +20,10 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState, Stat, TableSkeleton } from '@/components/ui/Feedback';
 import { Input, Select } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
+import { Thumb } from '@/components/ui/Thumb';
 import { useToast } from '@/components/ui/Toast';
 import { useSession } from '@/context/session';
-import { useDebouncedValue } from '@/lib/hooks';
+import { useSearch } from '@/lib/hooks';
 import { displayCode, initials } from '@/lib/format';
 import { friendlyMessage, partners } from '@/lib/odoo';
 import type { Partner } from '@/lib/odoo';
@@ -39,10 +40,19 @@ export function CustomersPage() {
   const [totals, setTotals] = useState<{ customers: number; invoices: number } | null>(null);
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebouncedValue(search);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+
+  const { data: searchedPartners, loading: searchLoading, error: searchError } = useSearch(
+    useCallback(async (_signal, query) => {
+      return partners.listPartners(client, { search: query, limit: 120 });
+    }, [client]),
+    search,
+    300,
+  );
+
+  const displayRows = tab === 'all' && search.trim() ? (searchedPartners ?? []) : rows;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,14 +61,14 @@ export function CustomersPage() {
       const data =
         tab === 'frequent'
           ? await partners.listFrequentPartners(client, 15)
-          : await partners.listPartners(client, { search: debouncedSearch, limit: 120 });
+          : await partners.listPartners(client, { limit: 120 });
       setRows(data);
     } catch (cause) {
       setError(friendlyMessage(cause));
     } finally {
       setLoading(false);
     }
-  }, [client, tab, debouncedSearch]);
+  }, [client, tab]);
 
   const loadFrequent = useCallback(async () => {
     try {
@@ -154,9 +164,12 @@ export function CustomersPage() {
                 className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-transparent p-3.5"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-500/25 bg-gold-500/10 text-[11px] font-semibold text-gold-300">
-                    {initials(partner.name)}
-                  </span>
+                  <Thumb
+                    base64={partner.image_128}
+                    rounded="rounded-full"
+                    className="h-9 w-9"
+                    fallback={initials(partner.name)}
+                  />
                   <Badge tone="gold">
                     <Crown className="h-3 w-3" aria-hidden />
                     {partner.invoice_count ?? 0}
@@ -224,7 +237,20 @@ export function CustomersPage() {
           </Button>
         </div>
 
-        {loading ? (
+        {tab === 'all' && search.trim() && searchLoading ? (
+          <TableSkeleton rows={6} cols={5} />
+        ) : tab === 'all' && search.trim() && searchError ? (
+          <EmptyState
+            icon={<Users className="h-6 w-6" />}
+            title="Error en la búsqueda"
+            description={friendlyMessage(searchError)}
+            action={
+              <Button variant="secondary" onClick={() => setSearch(search)} icon={<RefreshCw className="h-4 w-4" />}>
+                Reintentar
+              </Button>
+            }
+          />
+        ) : loading ? (
           <TableSkeleton rows={6} cols={5} />
         ) : error ? (
           <EmptyState
@@ -237,26 +263,30 @@ export function CustomersPage() {
               </Button>
             }
           />
-        ) : rows.length === 0 ? (
+        ) : displayRows.length === 0 ? (
           <EmptyState
             icon={<UserRound className="h-6 w-6" />}
             title="Sin clientes"
             description={
               tab === 'frequent'
                 ? 'Todavía no hay clientes con pedidos de venta confirmados.'
+                : search.trim()
+                ? 'No se encontraron clientes con ese criterio.'
                 : 'Crea tu primer cliente para empezar a facturar.'
             }
             action={
-              <Button onClick={() => setNewOpen(true)} icon={<Plus className="h-4 w-4" />}>
-                Nuevo cliente
-              </Button>
+              tab !== 'frequent' ? (
+                <Button onClick={() => setNewOpen(true)} icon={<Plus className="h-4 w-4" />}>
+                  Nuevo cliente
+                </Button>
+              ) : null
             }
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
+                <tr className="border-b border-slate-200 text-[11px] uppercase tracking-[0.12em] text-slate-500">
                   <th className="px-4 py-2.5 font-medium">Cliente</th>
                   <th className="px-4 py-2.5 font-medium">Contacto</th>
                   <th className="px-4 py-2.5 font-medium">NIT / CI</th>
@@ -266,13 +296,16 @@ export function CustomersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {rows.map((partner) => (
+                {displayRows.map((partner) => (
                   <tr key={partner.id} className="row-hover">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-700">
-                          {initials(partner.name)}
-                        </span>
+                        <Thumb
+                          base64={partner.image_128}
+                          rounded="rounded-full"
+                          className="h-9 w-9"
+                          fallback={initials(partner.name)}
+                        />
                         <div className="min-w-0">
                           <p className="flex items-center gap-1.5 truncate font-medium text-slate-900">
                             {partner.name}
@@ -331,7 +364,7 @@ export function CustomersPage() {
         )}
 
         <div className="flex items-center justify-between border-t border-slate-200 px-4 py-2.5 text-[11px] text-slate-500">
-          <span>{rows.length} cliente(s)</span>
+          <span>{displayRows.length} cliente(s)</span>
           <span className="hidden sm:inline">res.partner · customer_rank &gt; 0</span>
         </div>
       </section>

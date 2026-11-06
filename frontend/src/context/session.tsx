@@ -11,6 +11,7 @@ import {
 import type { OdooClient, OdooUser } from '@/lib/odoo';
 import type { CompanyInfo } from '@/lib/odoo/services/company';
 import { safeCurrency } from '@/lib/format';
+import { OdooError } from '@/lib/odoo/errors';
 
 type Status = 'restoring' | 'anonymous' | 'authenticated';
 
@@ -68,11 +69,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUser(currentUser);
         setCompany(info);
         setStatus('authenticated');
-      } catch {
+      } catch (error) {
         if (!active) return;
-        clearSession();
-        client.clearCredentials();
-        setStatus('anonymous');
+        // Solo limpiar sesión si es error de autenticación (credenciales inválidas).
+        // En errores de conexión/red, mantener la sesión en memoria para reintentar.
+        if (error instanceof OdooError && error.kind === 'auth') {
+          clearSession();
+          client.clearCredentials();
+          setStatus('anonymous');
+        } else {
+          // Error de conexión: mantener estado "restoring" para que la UI pueda reintentar
+          setStatus('restoring');
+        }
       }
     })();
 

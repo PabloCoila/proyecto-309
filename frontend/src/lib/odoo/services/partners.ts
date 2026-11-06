@@ -13,6 +13,7 @@ const PARTNER_FIELDS = [
   'country_id',
   'customer_rank',
   'is_company',
+  'image_128',
 ];
 
 export interface PartnerQuery {
@@ -66,13 +67,11 @@ async function withInvoiceCounts(client: OdooClient, rows: Partner[]): Promise<P
 /** Listado de clientes con búsqueda por nombre, email, teléfono o NIT. */
 export async function listPartners(client: OdooClient, query: PartnerQuery = {}): Promise<Partner[]> {
   const { search = '', limit = 100, offset = 0 } = query;
-  const domain: Domain = [];
+  const domain: Domain = [['customer_rank', '>', 0]];
   const term = search.trim();
 
   if (term) {
     domain.push('|', '|', '|', ['name', 'ilike', term], ['email', 'ilike', term], ['phone', 'ilike', term], ['vat', 'ilike', term]);
-  } else {
-    domain.push(['customer_rank', '>', 0]);
   }
 
   const rows = await client.searchRead<Partner>('res.partner', {

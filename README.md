@@ -112,8 +112,8 @@ Copia `frontend/.env.example` a `frontend/.env` si necesitas otros valores. Por 
 | Login | Autenticación real (`common.login`), animación de entrada y microinteracciones Framer Motion |
 | Inventario | Productos con cantidad a mano/disponible, búsqueda, filtro con stock, alta de productos, ubicaciones internas y ajuste de inventario (`stock.quant` + `action_apply_inventory`) |
 | Clientes | Listado `res.partner`, ranking por facturas publicadas, alta rápida con validación |
-| Facturación | POS con carrito, selector de cliente, validación de stock, emisión de `account.move` + `action_post`, salida de almacén (`stock.picking` validado) y descarga inmediata del PDF |
-| PDF | A4 con cabecera de marca, datos del cliente, ítems, totales de Odoo, notas, firma y paginación |
+| Facturación | POS con carrito, selector de cliente, validación de stock, emisión de `account.move` + `action_post`, registro de pago en efectivo/transferencia (`account.payment.register`), salida de almacén (`stock.picking` validado) y descarga inmediata del PDF |
+| PDF | A4 con cabecera de marca, datos fiscales del emisor (`res.company`), datos del cliente, ítems, totales de Odoo, notas, firma y paginación |
 
 ## Arquitectura y decisiones
 
@@ -131,6 +131,7 @@ npm run dev         # desarrollo (proxy a Odoo en :8069)
 npm run build       # typecheck + build de producción
 npm run typecheck   # solo TypeScript
 npm run test:ui     # smoke de UI con JSON-RPC simulado (Edge headless) + capturas
+  * Requiere dev server en http://localhost:5173 y Edge instalado
 npm run test:e2e    # flujo real contra Odoo + verificación de stock en :8069
 npm run pdf:sample  # genera docs/factura-ejemplo.pdf sin Odoo
 ```

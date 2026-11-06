@@ -19,6 +19,7 @@ const INVOICE_FIELDS = [
   'invoice_date',
   'partner_id',
   'currency_id',
+  'payment_state',
 ];
 
 function assertLines(lines: CartLine[]): void {
@@ -123,8 +124,40 @@ export async function createInvoice(
   return invoice;
 }
 
-/** Revierte una factura recién creada; devuelve true si logró eliminarla. */
-async function discardInvoice(client: OdooClient, invoiceId: number): Promise<boolean> {
+/**
+ * Registra el pago total de una factura publicada con el asistente estándar
+ * de Odoo (`account.payment.register`). Si falla, la factura queda impaga:
+ * nunca se altera el asiento ya emitido.
+ */
+export async function registerInvoicePayment(
+  client: OdooClient,
+  invoiceId: number,
+  amount: number,
+  method: 'cash' | 'bank',
+): Promise<void> {
+  if (amount <= 0) return;
+
+  const journals = await client.searchRead<{ id: number; type: string }>('account.journal', {
+    domain: [['type', 'in', ['cash', 'bank']]],
+    fields: ['id', 'type'],
+    limit: 50,
+  });
+  const journal = journals.find((row) => row.type === method) ?? journals[0];
+  if (!journal) {
+    throw new OdooError({ message: 'No hay un diario de efectivo o banco configurado en Odoo.' });
+  }
+
+  const context = { active_model: 'account.move', active_ids: [invoiceId] };
+  const wizardId = await client.executeKw<number>(
+    'account.payment.register',
+    'create',
+    [{ payment_date: localDate(), amount, journal_id: journal.id }],
+    { context },
+  );
+  await client.executeKw('account.payment.register', 'action_create_payments', [[wizardId]], { context });
+}
+
+/** Revierte una factura recién creada; devuelve true si logró eliminarla. */async function discardInvoice(client: OdooClient, invoiceId: number): Promise<boolean> {
   try {
     await client.callButton('account.move', 'button_draft', [invoiceId]);
   } catch {

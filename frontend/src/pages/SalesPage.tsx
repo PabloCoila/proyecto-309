@@ -21,11 +21,12 @@ import {
 import { Badge } from '@/components/ui/Surface';
 import { Button } from '@/components/ui/Button';
 import { EmptyState, Spinner, TableSkeleton } from '@/components/ui/Feedback';
-import { Input } from '@/components/ui/Field';
+import { Input, Select } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
+import { Thumb } from '@/components/ui/Thumb';
 import { useToast } from '@/components/ui/Toast';
 import { useSession } from '@/context/session';
-import { useDebouncedValue } from '@/lib/hooks';
+import { useSearch, useDebouncedValue } from '@/lib/hooks';
 import { displayCode, formatDate, formatMoney, formatQty, initials, safeCurrency } from '@/lib/format';
 import type { PdfInvoiceData } from '@/lib/pdf';
 import { friendlyMessage, inventory, partners, sales } from '@/lib/odoo';
@@ -39,6 +40,7 @@ interface CartLine {
 interface SaleResult {
   invoice: Invoice;
   pdf: PdfInvoiceData;
+  paid: boolean;
 }
 
 function invoiceStateLabel(state: Invoice['state']): string {
@@ -53,15 +55,24 @@ function tracksStock(product: Product): boolean {
 }
 
 export function SalesPage() {
-  const { client, currency } = useSession();
+  const { client, currency, company } = useSession();
   const toast = useToast();
   const [searchParams] = useSearchParams();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearch, setProductSearch] = useState('');
-  const debouncedSearch = useDebouncedValue(productSearch, 350);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [productError, setProductError] = useState<string | null>(null);
+
+  const { data: searchedProducts, loading: searchLoading, error: searchError } = useSearch(
+    useCallback(async (_signal, query) => {
+      return inventory.listProducts(client, { search: query, limit: 60, order: 'name asc' });
+    }, [client]),
+    productSearch,
+    300,
+  );
+
+  const displayProducts = productSearch.trim() ? (searchedProducts ?? []) : products;
 
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -74,18 +85,19 @@ export function SalesPage() {
   const [recent, setRecent] = useState<Invoice[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank' | 'credit'>('cash');
 
   const loadProducts = useCallback(async () => {
     setLoadingProducts(true);
     setProductError(null);
     try {
-      setProducts(await inventory.listProducts(client, { search: debouncedSearch, limit: 60, order: 'name asc' }));
+      setProducts(await inventory.listProducts(client, { limit: 60, order: 'name asc' }));
     } catch (cause) {
       setProductError(friendlyMessage(cause));
     } finally {
       setLoadingProducts(false);
     }
-  }, [client, debouncedSearch]);
+  }, [client]);
 
   const loadRecent = useCallback(async () => {
     setLoadingRecent(true);
@@ -214,8 +226,9 @@ export function SalesPage() {
     }
 
     setSubmitting(true);
+    let invoice: Invoice | null = null;
     try {
-      const invoice = await sales.createInvoice(client, {
+      invoice = await sales.createInvoice(client, {
         partnerId: selectedPartner.id,
         lines: lines.map((line) => ({
           productId: line.product.id,
@@ -224,19 +237,40 @@ export function SalesPage() {
         })),
       });
 
+      let paid = false;
+      if (paymentMethod !== 'credit') {
+        try {
+          await sales.registerInvoicePayment(client, invoice.id, invoice.amount_total, paymentMethod);
+          paid = true;
+        } catch (cause) {
+          toast.error(
+            'Factura emitida, pero el pago no se registró',
+            `${friendlyMessage(cause)} Puedes registrarlo manualmente en Odoo.`,
+          );
+        }
+      }
+
       const invoiceLines = await sales.getInvoiceLines(client, invoice.id);
       const pdf = buildPdfData({
         invoice,
         lines: invoiceLines,
         partner: selectedPartner,
         fallbackCurrency: currency,
+        company,
       });
 
-      setResult({ invoice, pdf });
+      setResult({ invoice, pdf, paid });
       setLines([]);
 
       if (autoDownload) {
-        await savePdf(pdf);
+        try {
+          await savePdf(pdf);
+        } catch (cause) {
+          toast.error(
+            'Factura emitida, pero no se pudo generar el PDF',
+            'Puedes descargarlo desde "Facturas recientes".',
+          );
+        }
       }
 
       toast.success(
@@ -247,7 +281,18 @@ export function SalesPage() {
       void loadProducts();
       void loadRecent();
     } catch (cause) {
-      toast.error('No se pudo emitir la factura', friendlyMessage(cause));
+      // Si la factura ya existe, no se puede reportar como fallo de emisión:
+      // el usuario podría reintentar y duplicar la venta.
+      if (invoice) {
+        toast.error(
+          `Factura ${invoice.name || invoice.id} emitida`,
+          `No se pudo completar el comprobante. ${friendlyMessage(cause)}`,
+        );
+        void loadProducts();
+        void loadRecent();
+      } else {
+        toast.error('No se pudo emitir la factura', friendlyMessage(cause));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -266,6 +311,7 @@ export function SalesPage() {
         lines: invoiceLines,
         partner,
         fallbackCurrency: currency,
+        company,
       });
       await savePdf(pdf);
       toast.success('Comprobante generado', `${pdf.number} descargado en PDF.`);
@@ -303,10 +349,27 @@ export function SalesPage() {
                 aria-label="Buscar productos"
               />
             </div>
-            <span className="label hidden sm:inline">{products.length} en catálogo</span>
+            <span className="label hidden sm:inline">{displayProducts.length} en catálogo</span>
           </div>
 
-          {loadingProducts ? (
+          {productSearch.trim() && searchLoading ? (
+            <div className="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-[104px] animate-pulse rounded-xl border border-slate-200 bg-slate-50" />
+              ))}
+            </div>
+          ) : productSearch.trim() && searchError ? (
+            <EmptyState
+              icon={<ShoppingCart className="h-6 w-6" />}
+              title="Error en la búsqueda"
+              description={friendlyMessage(searchError)}
+              action={
+                <Button variant="secondary" onClick={() => setProductSearch(productSearch)} icon={<RefreshCw className="h-4 w-4" />}>
+                  Reintentar
+                </Button>
+              }
+            />
+          ) : loadingProducts ? (
             <div className="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="h-[104px] animate-pulse rounded-xl border border-slate-200 bg-slate-50" />
@@ -323,15 +386,17 @@ export function SalesPage() {
                 </Button>
               }
             />
-          ) : products.length === 0 ? (
+          ) : displayProducts.length === 0 ? (
             <EmptyState
               icon={<Package className="h-6 w-6" />}
-              title="Sin resultados"
-              description="No hay productos que coincidan con la búsqueda. Verifica el catálogo en Odoo."
+              title={productSearch.trim() ? 'Sin resultados' : 'Sin productos'}
+              description={productSearch.trim()
+                ? 'No hay productos que coincidan con la búsqueda. Verifica el catálogo en Odoo.'
+                : 'No hay productos en el catálogo. Crea productos en Odoo para empezar a vender.'}
             />
           ) : (
             <div className="grid flex-1 content-start gap-3 overflow-y-auto p-4 sm:grid-cols-2 2xl:grid-cols-3">
-              {products.map((product) => {
+              {displayProducts.map((product) => {
                 const kind = product.detailed_type ?? product.type;
                 const isService = kind === 'service';
                 const controlsStock = kind === 'product';
@@ -354,18 +419,25 @@ export function SalesPage() {
                         : 'hover:border-gold-500/35 hover:bg-gold-500/[0.05]'
                     }`}
                   >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-900">{product.name}</p>
-                        {inCart ? (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-bold text-ink-950">
-                            {inCart.quantity}
-                          </span>
-                        ) : (
-                          <Plus className="h-4 w-4 shrink-0 text-slate-600 transition group-hover:text-gold-300" aria-hidden />
-                        )}
+                    <div className="flex items-start gap-3">
+                      <Thumb
+                        base64={product.image_128}
+                        className="h-11 w-11"
+                        fallback={<Package className="h-4 w-4" aria-hidden />}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-900">{product.name}</p>
+                          {inCart ? (
+                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-bold text-ink-950">
+                              {inCart.quantity}
+                            </span>
+                          ) : (
+                            <Plus className="h-4 w-4 shrink-0 text-slate-600 transition group-hover:text-gold-300" aria-hidden />
+                          )}
+                        </div>
+                        <p className="mt-1 font-mono text-[10px] text-slate-500">{displayCode(product.default_code)}</p>
                       </div>
-                      <p className="mt-1 font-mono text-[10px] text-slate-500">{displayCode(product.default_code)}</p>
                     </div>
                     <div className="mt-3 flex items-end justify-between gap-2">
                       <p className="text-sm font-semibold text-gold-300">
@@ -374,7 +446,7 @@ export function SalesPage() {
                       {isService ? (
                         <Badge tone="neutral">Servicio</Badge>
                       ) : controlsStock ? (
-                        <span className={`text-[10.5px] ${product.free_qty > 0 ? 'text-slate-500' : 'text-rose-600'}`}>
+                        <span className={`text-[10.5px] ${product.free_qty <= 0 ? 'text-rose-600' : product.free_qty <= 5 ? 'text-amber-600' : 'text-slate-500'}`}>
                           {formatQty(product.free_qty)} disponible(s)
                         </span>
                       ) : (
@@ -434,6 +506,9 @@ export function SalesPage() {
                     <p className="mt-0.5 font-mono text-[11.5px] text-slate-600">
                       {result.invoice.name || `#${result.invoice.id}`}
                     </p>
+                    <Badge tone={result.paid ? 'success' : 'warning'} className="mt-2">
+                      {result.paid ? 'Pagada' : 'Pago pendiente'}
+                    </Badge>
                   </div>
 
                   <dl className="mt-5 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-[12.5px]">
@@ -469,9 +544,12 @@ export function SalesPage() {
                     onClick={() => setPickerOpen(true)}
                     className="flex w-full items-center gap-3 border-b border-slate-200 px-4 py-3 text-left transition hover:bg-slate-100"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-700">
-                      {selectedPartner ? initials(selectedPartner.name) : <UserRound className="h-4 w-4" />}
-                    </span>
+                    <Thumb
+                      base64={selectedPartner?.image_128}
+                      rounded="rounded-full"
+                      className="h-9 w-9"
+                      fallback={selectedPartner ? initials(selectedPartner.name) : <UserRound className="h-4 w-4" aria-hidden />}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block text-[10px] uppercase tracking-wider text-slate-500">Cliente</span>
                       <span className="block truncate text-[13px] font-medium text-slate-900">
@@ -494,11 +572,18 @@ export function SalesPage() {
                         {lines.map((line) => (
                           <li key={line.product.id} className="px-4 py-2.5">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-[12.5px] font-medium text-slate-900">{line.product.name}</p>
-                                <p className="font-mono text-[10px] text-slate-500">
-                                  {formatMoney(line.product.list_price, currency)} · {displayCode(line.product.default_code)}
-                                </p>
+                              <div className="flex min-w-0 flex-1 items-start gap-2">
+                                <Thumb
+                                  base64={line.product.image_128}
+                                  className="h-8 w-8"
+                                  fallback={<Package className="h-3.5 w-3.5" aria-hidden />}
+                                />
+                                <div className="min-w-0">
+                                  <p className="truncate text-[12.5px] font-medium text-slate-900">{line.product.name}</p>
+                                  <p className="font-mono text-[10px] text-slate-500">
+                                    {formatMoney(line.product.list_price, currency)} · {displayCode(line.product.default_code)}
+                                  </p>
+                                </div>
                               </div>
                               <button
                                 type="button"
@@ -548,6 +633,18 @@ export function SalesPage() {
                     <p className="mt-1 text-[10.5px] leading-relaxed text-slate-500">
                       El stock se reserva y descuenta automáticamente al emitir la factura.
                     </p>
+
+                    <Select
+                      label="Método de pago"
+                      value={paymentMethod}
+                      onChange={(event) => setPaymentMethod(event.target.value as typeof paymentMethod)}
+                      className="h-9 py-0 text-xs"
+                      containerClassName="mt-3"
+                    >
+                      <option value="cash">Efectivo</option>
+                      <option value="bank">Transferencia</option>
+                      <option value="credit">A crédito (sin pago)</option>
+                    </Select>
 
                     <label className="mt-3 flex cursor-pointer items-center gap-2 text-[11px] text-slate-600">
                       <input
@@ -609,7 +706,7 @@ export function SalesPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
+                <tr className="border-b border-slate-200 text-[11px] uppercase tracking-[0.12em] text-slate-500">
                   <th className="px-4 py-2.5 font-medium">Comprobante</th>
                   <th className="px-4 py-2.5 font-medium">Cliente</th>
                   <th className="px-4 py-2.5 font-medium">Fecha</th>
@@ -683,11 +780,13 @@ function buildPdfData({
   lines,
   partner,
   fallbackCurrency,
+  company,
 }: {
   invoice: Invoice;
   lines: Array<{ name: string; quantity: number; price_unit: number; price_subtotal: number }>;
   partner: Partner | null;
   fallbackCurrency: string;
+  company: PdfInvoiceData['company'] | null;
 }): PdfInvoiceData {
   const currency = pdfCurrency(invoice, fallbackCurrency);
   const date = typeof invoice.invoice_date === 'string' ? invoice.invoice_date : new Date().toISOString().slice(0, 10);
@@ -714,6 +813,7 @@ function buildPdfData({
     tax: invoice.amount_tax,
     total: invoice.amount_total,
     currency,
+    company: company ?? undefined,
   };
 }
 
@@ -797,9 +897,12 @@ function ClientPickerModal({
                     onClick={() => onSelect(partner)}
                     className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-slate-100"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10.5px] font-semibold text-slate-700">
-                      {initials(partner.name)}
-                    </span>
+                    <Thumb
+                      base64={partner.image_128}
+                      rounded="rounded-full"
+                      className="h-8 w-8"
+                      fallback={initials(partner.name)}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12.5px] font-medium text-slate-900">{partner.name}</span>
                       <span className="block truncate text-[10.5px] text-slate-500">

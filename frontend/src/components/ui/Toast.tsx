@@ -53,7 +53,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       seq.current += 1;
       const id = seq.current;
       setItems((current) => [...current.slice(-3), { id, kind, title, message }]);
-      const timer = window.setTimeout(() => dismiss(id), kind === 'error' ? 6500 : 4200);
+      const timer = window.setTimeout(() => {
+        dismiss(id);
+        timers.current = timers.current.filter((t) => t !== timer);
+      }, kind === 'error' ? 6500 : 4200);
       timers.current.push(timer);
     },
     [dismiss],
@@ -76,7 +79,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[min(92vw,380px)] flex-col-reverse gap-2">
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[min(92vw,380px)] flex-col-reverse gap-2"
+      >
         <AnimatePresence initial={false}>
           {items.map((item) => {
             const style = STYLES[item.kind];

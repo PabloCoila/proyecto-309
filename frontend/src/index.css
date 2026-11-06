@@ -42,6 +42,16 @@
   input[type='search']::-webkit-search-cancel-button {
     display: none;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer components {
@@ -54,7 +64,7 @@
   }
 
   .label {
-    @apply text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-500;
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500;
   }
 
   .field {

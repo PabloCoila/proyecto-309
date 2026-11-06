@@ -16,6 +16,7 @@ const PRODUCT_FIELDS = [
   'standard_price',
   'detailed_type',
   'type',
+  'image_128',
 ];
 
 export interface ProductQuery {

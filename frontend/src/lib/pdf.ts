@@ -32,6 +32,14 @@ export interface PdfInvoiceData {
   total: number;
   currency: string;
   note?: string | false | null;
+  /** Emisor de la factura (datos fiscales que vienen de res.company). */
+  company?: {
+    name: string;
+    vat?: string | false | null;
+    street?: string | false | null;
+    city?: string | false | null;
+    phone?: string | false | null;
+  };
 }
 
 const PAGE_W = 210;
@@ -376,7 +384,20 @@ function drawClosing(doc: jsPDF, y: number): void {
   doc.text('Firma autorizada', right - 26, y + 12, { align: 'center' });
 }
 
-function drawFooters(doc: jsPDF): void {
+/** Línea fiscal del emisor para el pie; se recorta para no chocar con la paginación. */
+function issuerLine(company: PdfInvoiceData['company']): string {
+  if (!company) return 'Comprobante generado localmente · Inventario & Punto de Venta';
+
+  const address = [company.street, company.city].filter(Boolean).join(', ');
+  const text = pdfText(
+    [company.name, company.vat ? `NIT ${company.vat}` : null, address || null, company.phone]
+      .filter(Boolean)
+      .join(' · '),
+  );
+  return text.length > 80 ? `${text.slice(0, 79)}...` : text;
+}
+
+function drawFooters(doc: jsPDF, data: PdfInvoiceData): void {
   const total = doc.getNumberOfPages();
   for (let page = 1; page <= total; page += 1) {
     doc.setPage(page);
@@ -394,7 +415,7 @@ function drawFooters(doc: jsPDF): void {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(...MUTED);
-    doc.text('Comprobante generado localmente · Inventario & Punto de Venta', MARGIN + 34, PAGE_H - 16.5);
+    doc.text(issuerLine(data.company), MARGIN + 34, PAGE_H - 16.5);
     doc.text(`Página ${page} de ${total}`, PAGE_W - MARGIN, PAGE_H - 16.5, { align: 'right' });
   }
 }
@@ -467,7 +488,7 @@ export function buildInvoicePdf(data: PdfInvoiceData): jsPDF {
     drawClosing(doc, PAGE_H - 52);
   }
 
-  drawFooters(doc);
+  drawFooters(doc, data);
   return doc;
 }
 
@@ -507,6 +528,13 @@ export function sampleInvoiceData(currency = 'BOB'): PdfInvoiceData {
     tax: 422.85,
     total: 3667.85,
     currency,
+    company: {
+      name: 'Neru S.R.L.',
+      vat: '1023456789',
+      street: 'Av. 6 de Agosto #30',
+      city: 'La Paz',
+      phone: '+591 712 34567',
+    },
     note: 'Gracias por su compra. Documento de demostración generado por Neru.',
   };
 }

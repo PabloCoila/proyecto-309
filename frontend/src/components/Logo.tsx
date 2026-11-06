@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 
 /** Teal de marca para el icono. */
-export const BRAND_TEAL = '#0F8A8C';
+export const BRAND_TEAL = '#0F766E';
 
 /** Geometría del icono de billetera (caja 64×64). Reutilizada por el favicon y el PDF. */
 export const WALLET_GEOMETRY = {
