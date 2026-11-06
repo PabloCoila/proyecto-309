@@ -438,7 +438,6 @@ function NewClientModal({
       open={open}
       onClose={onClose}
       title="Nuevo cliente"
-      description="Alta rápida en res.partner con customer_rank = 1."
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={saving}>

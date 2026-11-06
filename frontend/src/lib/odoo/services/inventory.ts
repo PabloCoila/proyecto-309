@@ -25,6 +25,8 @@ export interface ProductQuery {
   offset?: number;
   /** Solo productos con existencia > 0. */
   onlyWithStock?: boolean;
+  /** Solo productos con disponible menor a este valor (alertas de stock). */
+  maxFreeQty?: number;
   /** Solo productos almacenables (excluye servicios y consumibles). */
   stockableOnly?: boolean;
   order?: string;
@@ -57,7 +59,7 @@ export async function createProduct(client: OdooClient, input: ProductInput): Pr
 
 /** Lista de productos con su existencia a mano. */
 export async function listProducts(client: OdooClient, query: ProductQuery = {}): Promise<Product[]> {
-  const { search = '', limit = 80, offset = 0, onlyWithStock = false, stockableOnly = false, order = 'name asc' } = query;
+  const { search = '', limit = 80, offset = 0, onlyWithStock = false, maxFreeQty, stockableOnly = false, order = 'name asc' } = query;
 
   const domain: Domain = [];
   const term = search.trim();
@@ -65,6 +67,7 @@ export async function listProducts(client: OdooClient, query: ProductQuery = {})
     domain.push('|', '|', ['name', 'ilike', term], ['default_code', 'ilike', term], ['barcode', 'ilike', term]);
   }
   if (onlyWithStock) domain.push(['qty_available', '>', 0]);
+  if (maxFreeQty !== undefined) domain.push(['free_qty', '<', maxFreeQty]);
   if (stockableOnly) domain.push(['detailed_type', '=', 'product']);
 
   return client.searchRead<Product>('product.product', {
@@ -151,6 +154,30 @@ export async function setStockQuantity(client: OdooClient, input: StockAdjustmen
 
   const [applied] = await client.read<{ quantity: number }>('stock.quant', [quantId], ['quantity']);
   return applied?.quantity ?? quantity;
+}
+
+/**
+ * Actualiza el precio de venta del producto (`product.template.list_price`).
+ * Devuelve el precio final según Odoo.
+ */
+export async function setProductPrice(
+  client: OdooClient,
+  productId: number,
+  price: number,
+): Promise<number> {
+  if (!Number.isFinite(price) || price < 0) {
+    throw new OdooError({ message: 'El precio no puede ser negativo.' });
+  }
+
+  const [product] = await client.read<{ product_tmpl_id: [number, string] }>(
+    'product.product',
+    [productId],
+    ['product_tmpl_id'],
+  );
+  if (!product) throw new OdooError({ message: 'El producto no existe en Odoo.' });
+
+  await client.write('product.template', [product.product_tmpl_id[0]], { list_price: price });
+  return price;
 }
 
 /** Registra una entrada (delta positivo) o salida (delta negativo) de stock. */

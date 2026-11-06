@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
+  AlertTriangle,
   Boxes,
   MapPin,
   Minus,
@@ -35,6 +36,7 @@ export function InventoryPage() {
   const toast = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [alerts, setAlerts] = useState<Product[]>([]);
   const [locations, setLocations] = useState<StockLocation[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [search, setSearch] = useState('');
@@ -80,6 +82,24 @@ export function InventoryPage() {
     void fetchProducts();
   }, [fetchProducts]);
 
+  const loadAlerts = useCallback(async () => {
+    try {
+      // shortcut: tope de 20 alertas; si el catálogo crece, paginar o enlazar al listado filtrado.
+      const data = await inventory.listProducts(client, {
+        maxFreeQty: 5,
+        stockableOnly: true,
+        limit: 20,
+      });
+      setAlerts([...data].sort((a, b) => a.free_qty - b.free_qty));
+    } catch {
+      /* el listado principal ya muestra el error de conexión */
+    }
+  }, [client]);
+
+  useEffect(() => {
+    void loadAlerts();
+  }, [loadAlerts]);
+
   useEffect(() => {
     let active = true;
     Promise.all([
@@ -103,6 +123,7 @@ export function InventoryPage() {
     setRefreshing(true);
     await Promise.all([
       fetchProducts(true),
+      loadAlerts(),
       inventory
         .getInventorySummary(client)
         .then(setSummary)
@@ -328,6 +349,42 @@ export function InventoryPage() {
               )}
             </div>
           </section>
+
+          <section className="surface p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden />
+                Alertas
+              </h2>
+              {alerts.length > 0 ? (
+                <Badge tone="warning">{alerts.length === 20 ? '20+' : alerts.length}</Badge>
+              ) : null}
+            </div>
+            <div className="mt-3 space-y-2">
+              {alerts.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50/60 px-3 py-4 text-center text-[11px] text-emerald-700">
+                  Sin productos con stock bajo.
+                </p>
+              ) : (
+                alerts.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelected(item)}
+                    className="flex w-full items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left transition hover:border-amber-300"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-slate-800">{item.name}</p>
+                      <p className="truncate font-mono text-[10px] text-amber-700">
+                        disponible {formatQty(item.free_qty)} · mínimo 5
+                      </p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
         </div>
       </div>
 
@@ -367,6 +424,7 @@ function AdjustStockModal({
   const [locationId, setLocationId] = useState<number>(0);
   const [current, setCurrent] = useState<number | null>(null);
   const [value, setValue] = useState('0');
+  const [price, setPrice] = useState('0');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -374,6 +432,10 @@ function AdjustStockModal({
     if (!product) return;
     setLocationId(locations[0]?.id ?? 0);
   }, [product, locations]);
+
+  useEffect(() => {
+    if (product) setPrice(String(product.list_price));
+  }, [product]);
 
   useEffect(() => {
     if (!product || !locationId) return;
@@ -403,6 +465,7 @@ function AdjustStockModal({
   }, [client, product, locationId, toast]);
 
   const numericValue = Number.parseFloat(value);
+  const numericPrice = Number.parseFloat(price);
   const delta = current !== null && Number.isFinite(numericValue) ? numericValue - current : 0;
 
   const nudge = (amount: number) => {
@@ -416,6 +479,10 @@ function AdjustStockModal({
       toast.error('Cantidad inválida', 'Ingresa un número mayor o igual a cero.');
       return;
     }
+    if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+      toast.error('Precio inválido', 'Ingresa un precio mayor o igual a cero.');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -424,12 +491,22 @@ function AdjustStockModal({
         locationId,
         quantity: numericValue,
       });
-      onDone(product.name);
     } catch (cause) {
       toast.error('No se pudo ajustar el stock', friendlyMessage(cause));
-    } finally {
       setSaving(false);
+      return;
     }
+
+    if (Math.abs(numericPrice - product.list_price) > 0.001) {
+      try {
+        await inventory.setProductPrice(client, product.id, numericPrice);
+      } catch (cause) {
+        toast.error('Stock ajustado, pero el precio no se actualizó', friendlyMessage(cause));
+      }
+    }
+
+    setSaving(false);
+    onDone(product.name);
   };
 
   return (
@@ -522,6 +599,18 @@ function AdjustStockModal({
               </Button>
             </div>
           </div>
+
+          <Input
+            label="Precio de venta"
+            type="number"
+            min={0}
+            step="0.01"
+            value={price}
+            onChange={(event) => setPrice(event.target.value)}
+            disabled={loading}
+            hint={`Se guarda en el catálogo de Odoo (${currency}).`}
+            className="font-mono text-base"
+          />
 
           <p className="text-[11px] leading-relaxed text-slate-500">
             El ajuste se contabiliza en Odoo como inventario físico. Si el producto tiene movimientos
